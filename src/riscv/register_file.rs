@@ -1,12 +1,11 @@
-
 struct RegisterFile {
-    registers: Vec<u32>
+    registers: Vec<u32>,
 }
 
 impl RegisterFile {
     fn new(number_of_registers: usize) -> RegisterFile {
         RegisterFile {
-            registers: vec![0; number_of_registers]
+            registers: vec![0; number_of_registers],
         }
     }
 

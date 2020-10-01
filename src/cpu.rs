@@ -1,4 +1,3 @@
-
 /// Represents a clockable component in the system
 ///
 /// Each component will get two signals a clock high and a clock low. On clock high a component should

@@ -1,12 +1,12 @@
 use crate::cpu::Clocked;
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 #[derive(Debug, Eq, PartialEq)]
 enum BusState {
     BusyWrite,
     BusyRead,
-    Idle
+    Idle,
 }
 
 pub struct BusPeripheral {
@@ -14,7 +14,7 @@ pub struct BusPeripheral {
     end_address: u32,
     write_latency: usize,
     read_latency: usize,
-    bussed_peripheral: Box<dyn BussedPeripheral>
+    bussed_peripheral: Box<dyn BussedPeripheral>,
 }
 
 impl BusPeripheral {
@@ -23,14 +23,14 @@ impl BusPeripheral {
         end_address: u32,
         write_latency: usize,
         read_latency: usize,
-        bussed_peripheral: Box<dyn BussedPeripheral>
+        bussed_peripheral: Box<dyn BussedPeripheral>,
     ) -> Self {
         BusPeripheral {
             start_address,
             end_address,
             write_latency,
             read_latency,
-            bussed_peripheral
+            bussed_peripheral,
         }
     }
 }
@@ -42,7 +42,7 @@ pub struct Bus {
     active_address: u32,
     active_write_value: u32,
     result: u32,
-    latency_counter: usize
+    latency_counter: usize,
 }
 
 impl Clocked for Bus {
@@ -52,7 +52,6 @@ impl Clocked for Bus {
         }
 
         self.latency_counter -= 1;
-        println!("lat: {}", self.latency_counter);
     }
 
     fn clock_low(&mut self) {
@@ -62,16 +61,13 @@ impl Clocked for Bus {
 
         let mut peripheral = &mut self.bus_peripherals[self.active_peripheral_index];
         match self.state {
-            BusState::BusyWrite => peripheral.bussed_peripheral.write(
-                self.active_address,
-                self.active_write_value
-            ),
+            BusState::BusyWrite => peripheral
+                .bussed_peripheral
+                .write(self.active_address, self.active_write_value),
             BusState::BusyRead => {
-                self.result = peripheral.bussed_peripheral.read(
-                    self.active_address
-                );
-            },
-            _ => panic!("Not valid state on on idle")
+                self.result = peripheral.bussed_peripheral.read(self.active_address);
+            }
+            _ => panic!("Not valid state on on idle"),
         };
 
         self.latency_counter = 0;
@@ -88,7 +84,7 @@ impl Bus {
             active_address: 0,
             active_write_value: 0,
             result: 0,
-            latency_counter: 0
+            latency_counter: 0,
         }
     }
 
@@ -99,14 +95,12 @@ impl Bus {
             "Bus state must already be set to either BusyRead or BusyWrite before entering this function"
         );
 
-        let (index, peripheral) = self.bus_peripherals
+        let (index, peripheral) = self
+            .bus_peripherals
             .iter()
             .enumerate()
-            .find(|&(size, p)|
-                p.start_address <= address && address <= p.end_address
-            )
+            .find(|&(size, p)| p.start_address <= address && address <= p.end_address)
             .unwrap();
-
 
         self.latency_counter = if self.state == BusState::BusyRead {
             peripheral.read_latency
@@ -170,7 +164,7 @@ mod tests {
     use super::*;
 
     pub struct TestBusPeripheral {
-        value: Option<u32>
+        value: Option<u32>,
     }
 
     impl BussedPeripheral for TestBusPeripheral {
@@ -182,22 +176,31 @@ mod tests {
         }
     }
 
-    fn create_simple_bus_peripheral(initial_value: Option<u32>, write_latency: usize, read_latency: usize) -> BusPeripheral {
+    fn create_simple_bus_peripheral(
+        initial_value: Option<u32>,
+        write_latency: usize,
+        read_latency: usize,
+    ) -> BusPeripheral {
         let bussed_peripheral = TestBusPeripheral {
-            value: initial_value
+            value: initial_value,
         };
 
         BusPeripheral::new(
-           0,
+            0,
             4,
             write_latency,
             read_latency,
-            Box::new(bussed_peripheral)
+            Box::new(bussed_peripheral),
         )
     }
 
-    fn create_simple_bus(initial_value: Option<u32>, write_latency: usize, read_latency: usize) -> Bus {
-        let bus_peripheral = create_simple_bus_peripheral(initial_value, write_latency, read_latency);
+    fn create_simple_bus(
+        initial_value: Option<u32>,
+        write_latency: usize,
+        read_latency: usize,
+    ) -> Bus {
+        let bus_peripheral =
+            create_simple_bus_peripheral(initial_value, write_latency, read_latency);
         Bus::new(vec![bus_peripheral])
     }
 
