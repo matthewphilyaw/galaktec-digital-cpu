@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="BranchesTreeState">
+    <expand>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="LOCAL_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+    </expand>
+    <select />
+  </component>
+  <component name="CMakeRunConfigurationManager" shouldGenerate="true" shouldDeleteObsolete="true">
+    <generated />
+  </component>
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" CONFIG_NAME="Debug" />
+    </configurations>
+  </component>
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="1ac05ca2-ca7b-4d2e-96a9-298a7f4c4b3e" name="Default Changelist" comment="" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Rust File" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$APPLICATION_CONFIG_DIR$/scratches/scratch.md" root0="SKIP_HIGHLIGHTING" root1="FORCE_HIGHLIGHTING" />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="38ovqezv" />
+  </component>
+  <component name="ProjectId" id="1hjjFHFXbY8JNna212jkYWcfcyx" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="1" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="cf.first.check.clang-format" value="false" />
+    <property name="com.intellij.ide.scratch.LRUPopupBuilder$1/New Scratch File" value="Markdown" />
+    <property name="nodejs_package_manager_path" value="npm" />
+    <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
+    <property name="settings.editor.selected.configurable" value="inlay.hints.Rust" />
+    <property name="ts.external.directory.path" value="C:\Program Files\JetBrains\CLion 2020.2.2\plugins\JavaScriptLanguage\jsLanguageServicesImpl\external" />
+  </component>
+  <component name="RunManager">
+    <configuration default="true" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Build" type="WasmPackCommandRunConfiguration" factoryName="wasm-pack">
+      <option name="command" value="build" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="RustProjectSettings">
+    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+    <option name="version" value="2" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="1ac05ca2-ca7b-4d2e-96a9-298a7f4c4b3e" name="Default Changelist" comment="" />
+      <created>1600531290950</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1600531290950</updated>
+      <workItem from="1600531293276" duration="471000" />
+      <workItem from="1600531775344" duration="36242000" />
+      <workItem from="1601387251499" duration="193000" />
+      <workItem from="1601387640981" duration="32388000" />
+      <workItem from="1601521187054" duration="6381000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="2585" y="330" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1600531698157">
+      <screen x="1920" y="0" width="1920" height="1050" />
+    </state>
+    <state x="2585" y="330" key="#com.intellij.fileTypes.FileTypeChooser/1920.0.1920.1050/0.0.1920.1050@1920.0.1920.1050" timestamp="1600531698157" />
+    <state x="2685" y="256" key="#com.intellij.ide.util.MemberChooser" timestamp="1601444158570">
+      <screen x="1920" y="0" width="1920" height="1050" />
+    </state>
+    <state x="2685" y="256" key="#com.intellij.ide.util.MemberChooser/1920.0.1920.1050/0.0.1920.1050@1920.0.1920.1050" timestamp="1601444158570" />
+    <state x="2560" y="276" key="#com.intellij.openapi.updateSettings.impl.PluginUpdateInfoDialog" timestamp="1601385527205">
+      <screen x="1920" y="0" width="1920" height="1050" />
+    </state>
+    <state x="2560" y="276" key="#com.intellij.openapi.updateSettings.impl.PluginUpdateInfoDialog/1920.0.1920.1050/0.0.1920.1050@1920.0.1920.1050" timestamp="1601385527205" />
+    <state x="2610" y="287" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog" timestamp="1601443998129">
+      <screen x="1920" y="0" width="1920" height="1050" />
+    </state>
+    <state x="2610" y="287" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog/1920.0.1920.1050/0.0.1920.1050@1920.0.1920.1050" timestamp="1601443998129" />
+    <state x="2660" y="295" key="FileChooserDialogImpl" timestamp="1600531730661">
+      <screen x="1920" y="0" width="1920" height="1050" />
+    </state>
+    <state x="2660" y="295" key="FileChooserDialogImpl/1920.0.1920.1050/0.0.1920.1050@1920.0.1920.1050" timestamp="1600531730661" />
+    <state width="1877" height="219" key="GridCell.Tab.0.bottom" timestamp="1601387222084">
+      <screen x="1920" y="0" width="1920" height="1050" />
+    </state>
+    <state width="1877" height="219" key="GridCell.Tab.0.bottom/1920.0.1920.1050/0.0.1920.1050@1920.0.1920.1050" timestamp="1601387222084" />
+    <state width="1877" height="219" key="GridCell.Tab.0.center" timestamp="1601387222084">
+      <screen x="1920" y="0" width="1920" height="1050" />
+    </state>
+    <state width="1877" height="219" key="GridCell.Tab.0.center/1920.0.1920.1050/0.0.1920.1050@1920.0.1920.1050" timestamp="1601387222084" />
+    <state width="1877" height="219" key="GridCell.Tab.0.left" timestamp="1601387222084">
+      <screen x="1920" y="0" width="1920" height="1050" />
+    </state>
+    <state width="1877" height="219" key="GridCell.Tab.0.left/1920.0.1920.1050/0.0.1920.1050@1920.0.1920.1050" timestamp="1601387222084" />
+    <state width="1877" height="219" key="GridCell.Tab.0.right" timestamp="1601387222084">
+      <screen x="1920" y="0" width="1920" height="1050" />
+    </state>
+    <state width="1877" height="219" key="GridCell.Tab.0.right/1920.0.1920.1050/0.0.1920.1050@1920.0.1920.1050" timestamp="1601387222084" />
+    <state x="2842" y="189" key="SettingsEditor" timestamp="1601441325181">
+      <screen x="1920" y="0" width="1920" height="1050" />
+    </state>
+    <state x="2842" y="189" key="SettingsEditor/1920.0.1920.1050/0.0.1920.1050@1920.0.1920.1050" timestamp="1601441325181" />
+    <state x="2543" y="235" width="672" height="678" key="search.everywhere.popup" timestamp="1601313007337">
+      <screen x="1920" y="0" width="1920" height="1050" />
+    </state>
+    <state x="2543" y="235" width="672" height="678" key="search.everywhere.popup/1920.0.1920.1050/0.0.1920.1050@1920.0.1920.1050" timestamp="1601313007337" />
+  </component>
+</project>
