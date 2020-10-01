@@ -1,12 +1,17 @@
 use crate::cpu::Clocked;
-use std::cell::RefCell;
-use std::rc::Rc;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 enum BusState {
-    BusyWrite,
-    BusyRead,
+    Waiting,
+    Update,
     Idle,
+}
+
+#[derive(Debug)]
+enum BusMode {
+    Write,
+    Read,
+    NotSet,
 }
 
 pub struct BusPeripheral {
@@ -37,6 +42,7 @@ impl BusPeripheral {
 
 pub struct Bus {
     state: BusState,
+    mode: BusMode,
     bus_peripherals: Vec<BusPeripheral>,
     active_peripheral_index: usize,
     active_address: u32,
@@ -47,31 +53,50 @@ pub struct Bus {
 
 impl Clocked for Bus {
     fn clock_high(&mut self) {
-        if self.state == BusState::Idle {
-            return;
-        }
+        debug_assert_ne!(
+            matches!(self.state, BusState::Update),
+            true,
+            "BusState set to Update is invalid on clock high, this is a logic error"
+        );
 
-        self.latency_counter -= 1;
+        if let BusState::Waiting = self.state {
+            debug_assert_ne!(
+                self.latency_counter,
+                0,
+                "Latency counter can not be zero at this point in the waiting state, this is a logic error"
+            );
+
+            self.latency_counter -= 1;
+            if self.latency_counter == 0 {
+                self.state = BusState::Update;
+
+                debug_assert_ne!(
+                    matches!(self.mode, BusMode::NotSet),
+                    true,
+                    "BusMode should not be equal to NotSet at this point on clock high"
+                );
+
+                let mut peripheral = &mut self.bus_peripherals[self.active_peripheral_index];
+                match self.mode {
+                    BusMode::Write => peripheral
+                        .bussed_peripheral
+                        .write(self.active_address, self.active_write_value),
+                    BusMode::Read => {
+                        self.result = peripheral.bussed_peripheral.read(self.active_address);
+                    }
+                    // assert above should catch this and panic in debug builds
+                    // in production builds favoring taking out the check
+                    BusMode::NotSet => (),
+                }
+            }
+        }
     }
 
     fn clock_low(&mut self) {
-        if self.state == BusState::Idle || self.latency_counter > 0 {
-            return;
+        if let BusState::Update = self.state {
+            self.mode = BusMode::NotSet;
+            self.state = BusState::Idle;
         }
-
-        let mut peripheral = &mut self.bus_peripherals[self.active_peripheral_index];
-        match self.state {
-            BusState::BusyWrite => peripheral
-                .bussed_peripheral
-                .write(self.active_address, self.active_write_value),
-            BusState::BusyRead => {
-                self.result = peripheral.bussed_peripheral.read(self.active_address);
-            }
-            _ => panic!("Not valid state on on idle"),
-        };
-
-        self.latency_counter = 0;
-        self.state = BusState::Idle;
     }
 }
 
@@ -79,6 +104,7 @@ impl Bus {
     pub fn new(peripherals: Vec<BusPeripheral>) -> Self {
         Bus {
             state: BusState::Idle,
+            mode: BusMode::NotSet,
             bus_peripherals: peripherals,
             active_peripheral_index: 0,
             active_address: 0,
@@ -89,10 +115,16 @@ impl Bus {
     }
 
     fn activate_peripheral(&mut self, address: u32) {
+        debug_assert_eq!(
+            matches!(self.state, BusState::Idle),
+            true,
+            "Bus state must be idle before activating a peripheral"
+        );
+
         debug_assert_ne!(
-            self.state,
-            BusState::Idle,
-            "Bus state must already be set to either BusyRead or BusyWrite before entering this function"
+            matches!(self.mode, BusMode::NotSet),
+            true,
+            "BusMode MUST not be equal to NotSet when activating a peripheral"
         );
 
         let (index, peripheral) = self
@@ -102,46 +134,49 @@ impl Bus {
             .find(|&(size, p)| p.start_address <= address && address <= p.end_address)
             .unwrap();
 
-        self.latency_counter = if self.state == BusState::BusyRead {
-            peripheral.read_latency
-        } else {
-            peripheral.write_latency
+        self.latency_counter = match self.mode {
+            BusMode::Read => peripheral.read_latency,
+            BusMode::Write => peripheral.write_latency,
+            // This should not be reached in debug builds
+            // and opting to take the panic out for production builds
+            // 0 is invalid for the counter which is also checked by another assert
+            BusMode::NotSet => 0,
         };
 
         self.active_address = address;
         self.active_peripheral_index = index;
+        self.state = BusState::Waiting;
     }
 
     pub fn write(&mut self, address: u32, value: u32) {
         debug_assert_eq!(
-            self.state,
-            BusState::Idle,
+            matches!(self.state, BusState::Idle),
+            true,
             "Bus must be in idle state before calling write. Current state is: {:?}",
             self.state
         );
 
         self.active_write_value = value;
-        self.state = BusState::BusyWrite;
-
+        self.mode = BusMode::Write;
         self.activate_peripheral(address);
     }
 
     pub fn read(&mut self, address: u32) {
         debug_assert_eq!(
-            self.state,
-            BusState::Idle,
+            matches!(self.state, BusState::Idle),
+            true,
             "Bus must be in idle state before calling read. Current state is: {:?}",
             self.state
         );
 
-        self.state = BusState::BusyRead;
+        self.mode = BusMode::Read;
         self.activate_peripheral(address);
     }
 
     pub fn result(&self) -> u32 {
         debug_assert_eq!(
-            self.state,
-            BusState::Idle,
+            matches!(self.state, BusState::Idle),
+            true,
             "Bus must be in idle state before calling result. Current state is: {:?}",
             self.state
         );
@@ -150,7 +185,11 @@ impl Bus {
     }
 
     pub fn idle(&self) -> bool {
-        self.state == BusState::Idle
+        if let BusState::Idle = self.state {
+            true
+        } else {
+            false
+        }
     }
 }
 
