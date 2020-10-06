@@ -1,6 +1,6 @@
 use crate::cpu::Clocked;
 
-mod data_bus;
+mod bus;
 
 pub trait PeripheralInterface: Clocked {
     fn write_req(&mut self, address: u32, value: u32);
