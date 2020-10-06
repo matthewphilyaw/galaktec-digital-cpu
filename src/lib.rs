@@ -1,6 +1,7 @@
-mod cpu;
-mod peripheral;
+mod clock;
 mod riscv;
+mod bus;
+
 mod utils;
 
 use wasm_bindgen::prelude::*;
