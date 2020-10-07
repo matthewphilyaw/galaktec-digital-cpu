@@ -104,6 +104,9 @@ impl Bus {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::clock::Clock;
+    use std::rc::Rc;
+    use std::cell::RefCell;
 
     #[test]
     fn initialized_bus_should_not_be_acquired() {
@@ -363,6 +366,31 @@ mod tests {
 
         let result = bus.release(None);
         assert_eq!(matches!(result, Err(BusOperationFailed)), true);
+    }
+
+    #[test]
+    fn bus_functions_via_clock() {
+        let mut bus = Rc::new(RefCell::new(Bus::new()));
+        let mut bus_ptr = bus.clone();
+
+        let clock = Clock::new(
+            None,
+            Some(vec![bus.clone()])
+        );
+
+        let op = Read { address: 1 };
+        bus.borrow_mut().acquire(op);
+
+        clock.clock();
+
+        assert_eq!(bus_ptr.borrow().acquired(), true);
+
+        let result = bus_ptr.borrow_mut().release(Some(1234));
+        clock.clock();
+
+        let rs = bus_ptr.borrow_mut().get_operation_result().unwrap().unwrap();
+
+        assert_eq!(rs, 1234);
     }
 }
 
