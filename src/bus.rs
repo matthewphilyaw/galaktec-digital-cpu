@@ -1,4 +1,7 @@
-use self::{BusState::*, Error::*, Operation::*};
+mod interface;
+mod peripheral;
+
+use self::{BusState::*, DataWidth::*, Error::*, Operation::*};
 
 #[derive(Debug, PartialEq)]
 enum BusState {
@@ -14,11 +17,26 @@ pub enum Error {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Operation {
-    Write { address: u32, data: u32 },
-    Read { address: u32 },
+pub enum DataWidth {
+    Byte,
+    HalfWord,
+    Word,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Operation {
+    Write {
+        data_width: DataWidth,
+        address: u32,
+        data: u32,
+    },
+    Read {
+        data_width: DataWidth,
+        address: u32,
+    },
+}
+
+#[derive(Debug)]
 pub struct Bus {
     state: BusState,
     operation: Option<Operation>,
@@ -58,7 +76,7 @@ impl Bus {
     pub fn operation_for_address_range(
         &mut self,
         start_address: u32,
-        end_address: u32,
+        block_size: u32,
     ) -> Result<Operation, Error> {
         if self.state != Acquiring {
             return Err(BusOperationFailed);
@@ -68,9 +86,10 @@ impl Bus {
             .operation
             .expect("The bus operation should be set when in the acquired state");
 
+        let end_address = start_address + block_size;
         match op {
-            Write { address, .. } | Read { address }
-                if start_address <= address && address <= end_address =>
+            Write { address, .. } | Read { address, .. }
+                if start_address <= address && address < end_address =>
             {
                 self.state = Acquired;
                 Ok(op)
@@ -108,6 +127,7 @@ mod tests {
         let mut bus = Bus::new();
 
         let result = bus.acquire(Write {
+            data_width: Word,
             address: 123,
             data: 456,
         });
@@ -119,17 +139,16 @@ mod tests {
     fn cant_acquire_bus_for_write_if_acquired() {
         let mut bus = Bus::new();
 
-        let result_one = bus.acquire(Write {
+        let op = Write {
+            data_width: Word,
             address: 123,
             data: 456,
-        });
+        };
+        let result_one = bus.acquire(op);
 
         assert_eq!(result_one, Ok(()));
 
-        let result_two = bus.acquire(Write {
-            address: 123,
-            data: 456,
-        });
+        let result_two = bus.acquire(op);
 
         assert_eq!(result_two, Err(BusOperationFailed));
     }
@@ -138,7 +157,10 @@ mod tests {
     fn can_acquire_bus_for_read_if_not_acquired() {
         let mut bus = Bus::new();
 
-        let result = bus.acquire(Read { address: 123 });
+        let result = bus.acquire(Read {
+            data_width: Word,
+            address: 123,
+        });
         assert_eq!(result, Ok(()));
     }
 
@@ -146,10 +168,14 @@ mod tests {
     fn cant_acquire_bus_for_read_if_acquired() {
         let mut bus = Bus::new();
 
-        let result_one = bus.acquire(Read { address: 123 });
+        let op = Read {
+            data_width: Word,
+            address: 123,
+        };
+        let result_one = bus.acquire(op);
         assert_eq!(result_one, Ok(()));
 
-        let result_two = bus.acquire(Read { address: 123 });
+        let result_two = bus.acquire(op);
         assert_eq!(result_two, Err(BusOperationFailed));
     }
 
@@ -158,6 +184,7 @@ mod tests {
         let mut bus = Bus::new();
 
         let op = Write {
+            data_width: Word,
             address: 1,
             data: 1,
         };
@@ -173,7 +200,10 @@ mod tests {
     fn get_operation_returns_if_operation_operation_within_range() {
         let mut bus = Bus::new();
 
-        let op = Read { address: 1 };
+        let op = Read {
+            data_width: Word,
+            address: 1,
+        };
         let result = bus.acquire(op);
         assert_eq!(result, Ok(()));
 
@@ -185,7 +215,10 @@ mod tests {
     fn get_operation_returns_if_address_same_as_start_address() {
         let mut bus = Bus::new();
 
-        let op = Read { address: 0 };
+        let op = Read {
+            data_width: Word,
+            address: 0,
+        };
         let result = bus.acquire(op);
         assert_eq!(result, Ok(()));
 
@@ -194,22 +227,28 @@ mod tests {
     }
 
     #[test]
-    fn get_operation_returns_if_address_same_as_end_address_inclusive() {
+    fn get_operation_fails_if_address_same_as_end_address() {
         let mut bus = Bus::new();
 
-        let op = Read { address: 2 };
+        let op = Read {
+            data_width: Word,
+            address: 2,
+        };
         let result = bus.acquire(op);
         assert_eq!(result, Ok(()));
 
         let operation = bus.operation_for_address_range(0, 2);
-        assert_eq!(operation, Ok(op));
+        assert_eq!(operation, Err(BusOperationFailed));
     }
 
     #[test]
     fn get_operation_returns_if_address_within_range() {
         let mut bus = Bus::new();
 
-        let op = Read { address: 1 };
+        let op = Read {
+            data_width: Word,
+            address: 1,
+        };
         let result = bus.acquire(op);
         assert_eq!(result, Ok(()));
 
@@ -218,10 +257,13 @@ mod tests {
     }
 
     #[test]
-    fn get_operation_fails_if_in_wrong_state() {
+    fn get_operation_fails_if_address_not_in_range() {
         let mut bus = Bus::new();
 
-        let result = bus.acquire(Read { address: 1 });
+        let result = bus.acquire(Read {
+            data_width: Word,
+            address: 1,
+        });
         assert_eq!(result, Ok(()));
 
         let operation = bus.operation_for_address_range(2, 4);
@@ -241,7 +283,10 @@ mod tests {
     fn get_operation_result_returns_result_set() {
         let mut bus = Bus::new();
 
-        bus.acquire(Read { address: 1 });
+        bus.acquire(Read {
+            data_width: Word,
+            address: 1,
+        });
         let _ = bus.operation_for_address_range(0, 2);
         bus.release(Some(123));
 
@@ -253,7 +298,10 @@ mod tests {
     fn get_operation_result_returns_result_not_ready() {
         let mut bus = Bus::new();
 
-        bus.acquire(Read { address: 1 });
+        bus.acquire(Read {
+            data_width: Word,
+            address: 1,
+        });
         let result = bus.operation_result();
         assert_eq!(result, Err(BusOperationFailed));
     }
@@ -265,7 +313,10 @@ mod tests {
         let result_one = bus.operation_result();
         assert_eq!(matches!(result_one, Ok(None)), true);
 
-        bus.acquire(Read { address: 1 });
+        bus.acquire(Read {
+            data_width: Word,
+            address: 1,
+        });
         let _ = bus.operation_for_address_range(0, 2);
         bus.release(Some(1));
 
@@ -280,8 +331,11 @@ mod tests {
         let result_one = bus.operation_result();
         assert_eq!(result_one, Ok(None));
 
-        bus.acquire(Read { address: 1 });
-        let _ = bus.operation_for_address_range(0, 1);
+        bus.acquire(Read {
+            data_width: Word,
+            address: 1,
+        });
+        let _ = bus.operation_for_address_range(0, 2);
         bus.release(Some(1));
 
         let result_two = bus.operation_result();
@@ -299,20 +353,3 @@ mod tests {
         assert_eq!(result, Err(BusOperationFailed));
     }
 }
-
-/*
-   clock (h)igh, - (l)ow
-   - 1
-   h acquiring
-   l peripherals check bus - can release (latency = 0 for next clock cycle)
-   - 2
-   h if released can use memory address
-   l memory - update state possibly burning latency
-   - 3
-   h memory release bus set to releasing
-   l bus transition to released
-   - 4
-   h cpu access bus value
-   l x
-   -
-*/
