@@ -1,7 +1,6 @@
-use crate::clock::{ClockedHigh, ClockedLow};
-
 use self::{BusState::*, Error::*, Operation::*};
 
+#[derive(Debug, PartialEq)]
 enum BusState {
     Acquiring,
     Acquired,
@@ -9,12 +8,12 @@ enum BusState {
     Released,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     BusOperationFailed,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Operation {
     Write { address: u32, data: u32 },
     Read { address: u32 },
@@ -24,16 +23,6 @@ pub struct Bus {
     state: BusState,
     operation: Option<Operation>,
     operation_result: Option<u32>,
-}
-
-impl ClockedLow for Bus {
-    fn clock_low(&mut self) {
-        match self.state {
-            Acquiring => self.state = Acquired,
-            Releasing => self.state = Released,
-            _ => (),
-        }
-    }
 }
 
 impl Bus {
@@ -46,58 +35,56 @@ impl Bus {
     }
 
     pub fn acquire(&mut self, operation: Operation) -> Result<(), Error> {
-        if let Released = self.state {
-            self.operation = Some(operation);
-            self.state = Acquiring;
-            Ok(())
-        } else {
-            Err(BusOperationFailed)
+        if self.state != Released {
+            return Err(BusOperationFailed);
         }
+
+        self.operation = Some(operation);
+        self.state = Acquiring;
+        Ok(())
     }
 
     pub fn release(&mut self, result: Option<u32>) -> Result<(), Error> {
-        if let Acquired = self.state {
-            self.operation_result = result;
-            self.operation = None;
-            self.state = Releasing;
-            Ok(())
-        } else {
-            Err(BusOperationFailed)
+        if self.state != Acquired {
+            return Err(BusOperationFailed);
         }
+
+        self.operation_result = result;
+        self.operation = None;
+        self.state = Released;
+        Ok(())
     }
 
-    pub fn get_operation(&self, start_addr: u32, end_addr: u32) -> Result<Operation, Error> {
-        if let Acquired = self.state {
-            let op = self
-                .operation
-                .expect("The bus operation should be set when in the acquired state");
-            match op {
-                Write { address, .. } | Read { address }
-                    if start_addr <= address && address <= end_addr =>
-                {
-                    Ok(op)
-                }
-                _ => Err(BusOperationFailed),
+    pub fn operation_for_address_range(
+        &mut self,
+        start_address: u32,
+        end_address: u32,
+    ) -> Result<Operation, Error> {
+        if self.state != Acquiring {
+            return Err(BusOperationFailed);
+        }
+
+        let op = self
+            .operation
+            .expect("The bus operation should be set when in the acquired state");
+
+        match op {
+            Write { address, .. } | Read { address }
+                if start_address <= address && address <= end_address =>
+            {
+                self.state = Acquired;
+                Ok(op)
             }
-        } else {
-            Err(BusOperationFailed)
+            _ => Err(BusOperationFailed),
         }
     }
 
-    pub fn get_operation_result(&self) -> Result<Option<u32>, Error> {
-        if let Released = self.state {
-            Ok(self.operation_result)
-        } else {
-            Err(BusOperationFailed)
+    pub fn operation_result(&self) -> Result<Option<u32>, Error> {
+        if self.state != Released {
+            return Err(BusOperationFailed);
         }
-    }
 
-    pub fn acquired(&self) -> bool {
-        if let Released = self.state {
-            false
-        } else {
-            true
-        }
+        Ok(self.operation_result)
     }
 }
 
@@ -105,21 +92,15 @@ impl Bus {
 mod tests {
     use super::*;
     use crate::clock::Clock;
-    use std::rc::Rc;
     use std::cell::RefCell;
-
-    #[test]
-    fn initialized_bus_should_not_be_acquired() {
-        let bus = Bus::new();
-        assert_eq!(bus.acquired(), false);
-    }
+    use std::rc::Rc;
 
     #[test]
     fn initialized_bus_should_not_have_result() {
         let bus = Bus::new();
 
-        let result = bus.get_operation_result();
-        assert_eq!(matches!(result, Ok(None)), true);
+        let result = bus.operation_result();
+        assert_eq!(result, Ok(None));
     }
 
     #[test]
@@ -131,7 +112,7 @@ mod tests {
             data: 456,
         });
 
-        assert_eq!(matches!(result, Ok(())), true);
+        assert_eq!(result, Ok(()));
     }
 
     #[test]
@@ -143,14 +124,14 @@ mod tests {
             data: 456,
         });
 
-        assert_eq!(matches!(result_one, Ok(())), true);
+        assert_eq!(result_one, Ok(()));
 
         let result_two = bus.acquire(Write {
             address: 123,
             data: 456,
         });
 
-        assert_eq!(matches!(result_two, Err(BusOperationFailed)), true);
+        assert_eq!(result_two, Err(BusOperationFailed));
     }
 
     #[test]
@@ -158,7 +139,7 @@ mod tests {
         let mut bus = Bus::new();
 
         let result = bus.acquire(Read { address: 123 });
-        assert_eq!(matches!(result, Ok(())), true);
+        assert_eq!(result, Ok(()));
     }
 
     #[test]
@@ -166,35 +147,14 @@ mod tests {
         let mut bus = Bus::new();
 
         let result_one = bus.acquire(Read { address: 123 });
-        assert_eq!(matches!(result_one, Ok(())), true);
+        assert_eq!(result_one, Ok(()));
 
         let result_two = bus.acquire(Read { address: 123 });
-        assert_eq!(matches!(result_two, Err(BusOperationFailed)), true);
+        assert_eq!(result_two, Err(BusOperationFailed));
     }
 
     #[test]
-    fn bus_reports_being_acquired_for_write_op() {
-        let mut bus = Bus::new();
-
-        let result_one = bus.acquire(Write {
-            address: 123,
-            data: 123,
-        });
-        assert_eq!(matches!(result_one, Ok(())), true);
-        assert_eq!(bus.acquired(), true);
-    }
-
-    #[test]
-    fn bus_reports_being_acquired_for_read_op() {
-        let mut bus = Bus::new();
-
-        let result_one = bus.acquire(Read { address: 123 });
-        assert_eq!(matches!(result_one, Ok(())), true);
-        assert_eq!(bus.acquired(), true);
-    }
-
-    #[test]
-    fn get_operation_returns_if_write_operation_within_range() {
+    fn operation_returns_if_write_operation_within_range() {
         let mut bus = Bus::new();
 
         let op = Write {
@@ -202,13 +162,11 @@ mod tests {
             data: 1,
         };
         let result = bus.acquire(op);
-        bus.clock_low();
 
-        assert_eq!(matches!(result, Ok(())), true);
+        assert_eq!(result, Ok(()));
 
-        let operation = bus.get_operation(0, 2);
-        bus.clock_low();
-        assert_eq!(matches!(operation, Ok(op)), true);
+        let operation = bus.operation_for_address_range(0, 2);
+        assert_eq!(operation, Ok(op));
     }
 
     #[test]
@@ -217,12 +175,10 @@ mod tests {
 
         let op = Read { address: 1 };
         let result = bus.acquire(op);
-        bus.clock_low();
-        assert_eq!(matches!(result, Ok(())), true);
+        assert_eq!(result, Ok(()));
 
-        let operation = bus.get_operation(0, 2);
-        bus.clock_low();
-        assert_eq!(matches!(operation, Ok(op)), true);
+        let operation = bus.operation_for_address_range(0, 2);
+        assert_eq!(operation, Ok(op));
     }
 
     #[test]
@@ -231,12 +187,10 @@ mod tests {
 
         let op = Read { address: 0 };
         let result = bus.acquire(op);
-        bus.clock_low();
-        assert_eq!(matches!(result, Ok(())), true);
+        assert_eq!(result, Ok(()));
 
-        let operation = bus.get_operation(0, 1);
-        bus.clock_low();
-        assert_eq!(matches!(operation, Ok(op)), true);
+        let operation = bus.operation_for_address_range(0, 1);
+        assert_eq!(operation, Ok(op));
     }
 
     #[test]
@@ -245,12 +199,10 @@ mod tests {
 
         let op = Read { address: 2 };
         let result = bus.acquire(op);
-        bus.clock_low();
-        assert_eq!(matches!(result, Ok(())), true);
+        assert_eq!(result, Ok(()));
 
-        let operation = bus.get_operation(0, 2);
-        bus.clock_low();
-        assert_eq!(matches!(operation, Ok(op)), true);
+        let operation = bus.operation_for_address_range(0, 2);
+        assert_eq!(operation, Ok(op));
     }
 
     #[test]
@@ -259,12 +211,10 @@ mod tests {
 
         let op = Read { address: 1 };
         let result = bus.acquire(op);
-        bus.clock_low();
-        assert_eq!(matches!(result, Ok(())), true);
+        assert_eq!(result, Ok(()));
 
-        let operation = bus.get_operation(0, 2);
-        bus.clock_low();
-        assert_eq!(matches!(operation, Ok(op)), true);
+        let operation = bus.operation_for_address_range(0, 2);
+        assert_eq!(operation, Ok(op));
     }
 
     #[test]
@@ -272,19 +222,19 @@ mod tests {
         let mut bus = Bus::new();
 
         let result = bus.acquire(Read { address: 1 });
-        assert_eq!(matches!(result, Ok(())), true);
+        assert_eq!(result, Ok(()));
 
-        let operation = bus.get_operation(2, 4);
+        let operation = bus.operation_for_address_range(2, 4);
 
-        assert_eq!(matches!(operation, Err(BusOperationFailed)), true)
+        assert_eq!(operation, Err(BusOperationFailed));
     }
 
     #[test]
     fn get_operation_fails_if_called_without_bus_being_acquired() {
         let mut bus = Bus::new();
 
-        let operation = bus.get_operation(0, 1);
-        assert_eq!(matches!(operation, Err(BusOperationFailed)), true)
+        let operation = bus.operation_for_address_range(0, 1);
+        assert_eq!(operation, Err(BusOperationFailed));
     }
 
     #[test]
@@ -292,12 +242,11 @@ mod tests {
         let mut bus = Bus::new();
 
         bus.acquire(Read { address: 1 });
-        bus.clock_low();
+        let _ = bus.operation_for_address_range(0, 2);
         bus.release(Some(123));
-        bus.clock_low();
 
-        let result = bus.get_operation_result();
-        assert_eq!(matches!(result, Ok(Some(123))), true);
+        let result = bus.operation_result();
+        assert_eq!(result, Ok(Some(123)));
     }
 
     #[test]
@@ -305,59 +254,41 @@ mod tests {
         let mut bus = Bus::new();
 
         bus.acquire(Read { address: 1 });
-        let result = bus.get_operation_result();
-        assert_eq!(matches!(result, Err(BusOperationFailed)), true);
-    }
-
-    #[test]
-    fn acquired_is_false_after_release() {
-        let mut bus = Bus::new();
-
-        bus.acquire(Read { address: 1 });
-        bus.clock_low();
-
-        assert_eq!(bus.acquired(), true);
-
-        bus.release(None);
-        bus.clock_low();
-        assert_eq!(bus.acquired(), false);
+        let result = bus.operation_result();
+        assert_eq!(result, Err(BusOperationFailed));
     }
 
     #[test]
     fn release_sets_operation_result() {
         let mut bus = Bus::new();
 
-        let result_one = bus.get_operation_result();
+        let result_one = bus.operation_result();
         assert_eq!(matches!(result_one, Ok(None)), true);
 
         bus.acquire(Read { address: 1 });
-        bus.clock_low();
-
+        let _ = bus.operation_for_address_range(0, 2);
         bus.release(Some(1));
-        bus.clock_low();
 
-        let result_two = bus.get_operation_result();
-        assert_eq!(matches!(result_two, Ok(Some(1))), true);
+        let result_two = bus.operation_result();
+        assert_eq!(result_two, Ok(Some(1)));
     }
 
     #[test]
     fn release_will_fail_if_called_after_acquire_and_release_cycle() {
         let mut bus = Bus::new();
 
-        let result_one = bus.get_operation_result();
-        assert_eq!(matches!(result_one, Ok(None)), true);
+        let result_one = bus.operation_result();
+        assert_eq!(result_one, Ok(None));
 
         bus.acquire(Read { address: 1 });
-        bus.clock_low();
-
+        let _ = bus.operation_for_address_range(0, 1);
         bus.release(Some(1));
-        bus.clock_low();
 
-        let result_two = bus.get_operation_result();
-        assert_eq!(matches!(result_two, Ok(Some(1))), true);
+        let result_two = bus.operation_result();
+        assert_eq!(result_two, Ok(Some(1)));
 
         let result_three = bus.release(None);
-        assert_eq!(matches!(result_three, Err(BusOperationFailed)), true);
+        assert_eq!(result_three, Err(BusOperationFailed));
     }
 
     #[test]
@@ -365,42 +296,17 @@ mod tests {
         let mut bus = Bus::new();
 
         let result = bus.release(None);
-        assert_eq!(matches!(result, Err(BusOperationFailed)), true);
-    }
-
-    #[test]
-    fn bus_functions_via_clock() {
-        let mut bus = Rc::new(RefCell::new(Bus::new()));
-        let mut bus_ptr = bus.clone();
-
-        let clock = Clock::new(
-            None,
-            Some(vec![bus.clone()])
-        );
-
-        let op = Read { address: 1 };
-        bus.borrow_mut().acquire(op);
-
-        clock.clock();
-
-        assert_eq!(bus_ptr.borrow().acquired(), true);
-
-        let result = bus_ptr.borrow_mut().release(Some(1234));
-        clock.clock();
-
-        let rs = bus_ptr.borrow_mut().get_operation_result().unwrap().unwrap();
-
-        assert_eq!(rs, 1234);
+        assert_eq!(result, Err(BusOperationFailed));
     }
 }
 
 /*
-   clock (+ high, - low)
+   clock (h)igh, - (l)ow
    - 1
-   h acquire
-   l state change to acquired
+   h acquiring
+   l peripherals check bus - can release (latency = 0 for next clock cycle)
    - 2
-   h memory get_operation
+   h if released can use memory address
    l memory - update state possibly burning latency
    - 3
    h memory release bus set to releasing
