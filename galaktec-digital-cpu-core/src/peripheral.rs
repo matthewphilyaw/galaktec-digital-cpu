@@ -1,10 +1,11 @@
 use crate::bus::{ Operation };
 use std::fmt::Debug;
-use crate::peripheral::address_map::AddressMap;
 
-pub mod memory;
 pub mod address_map;
 pub mod interface;
+
+pub use self::address_map::*;
+pub use self::interface::*;
 
 #[derive(Debug)]
 pub enum Error {

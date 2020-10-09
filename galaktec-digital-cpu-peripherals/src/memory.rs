@@ -1,7 +1,7 @@
-use crate::bus::{ Operation };
-use crate::peripheral::{Peripheral, address_map::AddressMap, Error};
+use galaktec_digital_cpu_core::peripheral::{ AddressMap, Peripheral, Error };
+use galaktec_digital_cpu_core::bus::{ Operation };
+use galaktec_digital_cpu_core::clock::{ ClockedHigh };
 
-use crate::clock::ClockedHigh;
 
 #[derive(Debug)]
 pub struct Memory {
