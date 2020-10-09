@@ -1,13 +1,10 @@
-mod interface;
-mod peripheral;
-
-use self::{BusState::*, DataWidth::*, Error::*, Operation::*};
+use self::{BusState::*, Error::*, Operation::*};
+use crate::peripheral::address_map::AddressMap;
 
 #[derive(Debug, PartialEq)]
 enum BusState {
     Acquiring,
     Acquired,
-    Releasing,
     Released,
 }
 
@@ -35,6 +32,7 @@ pub enum Operation {
         address: u32,
     },
 }
+
 
 #[derive(Debug)]
 pub struct Bus {
@@ -73,29 +71,25 @@ impl Bus {
         Ok(())
     }
 
-    pub fn operation_for_address_range(
+    pub fn operation_for_address_map(
         &mut self,
-        start_address: u32,
-        block_size: u32,
+        address_map: AddressMap,
     ) -> Result<Operation, Error> {
         if self.state != Acquiring {
             return Err(BusOperationFailed);
         }
 
-        let op = self
-            .operation
-            .expect("The bus operation should be set when in the acquired state");
+        debug_assert!(self.operation.is_some(), "The bus operation should be set when in the acquired state");
 
-        let end_address = start_address + block_size;
-        match op {
-            Write { address, .. } | Read { address, .. }
-                if start_address <= address && address < end_address =>
-            {
+        let op = self.operation.unwrap();
+        if let Write { address, .. } | Read { address, .. } = op {
+            if address_map.address_in_range(address) {
                 self.state = Acquired;
-                Ok(op)
+                return Ok(op);
             }
-            _ => Err(BusOperationFailed),
         }
+
+        Err(BusOperationFailed)
     }
 
     pub fn operation_result(&self) -> Result<Option<u32>, Error> {
@@ -110,6 +104,7 @@ impl Bus {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::DataWidth::*;
     use crate::clock::Clock;
     use std::cell::RefCell;
     use std::rc::Rc;
@@ -192,7 +187,8 @@ mod tests {
 
         assert_eq!(result, Ok(()));
 
-        let operation = bus.operation_for_address_range(0, 2);
+        let address_map = AddressMap::new(0, 2);
+        let operation = bus.operation_for_address_map(address_map);
         assert_eq!(operation, Ok(op));
     }
 
@@ -207,7 +203,8 @@ mod tests {
         let result = bus.acquire(op);
         assert_eq!(result, Ok(()));
 
-        let operation = bus.operation_for_address_range(0, 2);
+        let address_map = AddressMap::new(0, 2);
+        let operation = bus.operation_for_address_map(address_map);
         assert_eq!(operation, Ok(op));
     }
 
@@ -222,7 +219,8 @@ mod tests {
         let result = bus.acquire(op);
         assert_eq!(result, Ok(()));
 
-        let operation = bus.operation_for_address_range(0, 1);
+        let address_map = AddressMap::new(0, 1);
+        let operation = bus.operation_for_address_map(address_map);
         assert_eq!(operation, Ok(op));
     }
 
@@ -237,7 +235,8 @@ mod tests {
         let result = bus.acquire(op);
         assert_eq!(result, Ok(()));
 
-        let operation = bus.operation_for_address_range(0, 2);
+        let address_map = AddressMap::new(0, 2);
+        let operation = bus.operation_for_address_map(address_map);
         assert_eq!(operation, Err(BusOperationFailed));
     }
 
@@ -252,7 +251,8 @@ mod tests {
         let result = bus.acquire(op);
         assert_eq!(result, Ok(()));
 
-        let operation = bus.operation_for_address_range(0, 2);
+        let address_map = AddressMap::new(0, 2);
+        let operation = bus.operation_for_address_map(address_map);
         assert_eq!(operation, Ok(op));
     }
 
@@ -266,7 +266,8 @@ mod tests {
         });
         assert_eq!(result, Ok(()));
 
-        let operation = bus.operation_for_address_range(2, 4);
+        let address_map = AddressMap::new(2, 3);
+        let operation = bus.operation_for_address_map(address_map);
 
         assert_eq!(operation, Err(BusOperationFailed));
     }
@@ -275,7 +276,8 @@ mod tests {
     fn get_operation_fails_if_called_without_bus_being_acquired() {
         let mut bus = Bus::new();
 
-        let operation = bus.operation_for_address_range(0, 1);
+        let address_map = AddressMap::new(0, 1);
+        let operation = bus.operation_for_address_map(address_map);
         assert_eq!(operation, Err(BusOperationFailed));
     }
 
@@ -287,7 +289,8 @@ mod tests {
             data_width: Word,
             address: 1,
         });
-        let _ = bus.operation_for_address_range(0, 2);
+        let address_map = AddressMap::new(0, 2);
+        let _ = bus.operation_for_address_map(address_map);
         bus.release(Some(123));
 
         let result = bus.operation_result();
@@ -317,7 +320,8 @@ mod tests {
             data_width: Word,
             address: 1,
         });
-        let _ = bus.operation_for_address_range(0, 2);
+        let address_map = AddressMap::new(0, 2);
+        let _ = bus.operation_for_address_map(address_map);
         bus.release(Some(1));
 
         let result_two = bus.operation_result();
@@ -335,7 +339,8 @@ mod tests {
             data_width: Word,
             address: 1,
         });
-        let _ = bus.operation_for_address_range(0, 2);
+        let address_map = AddressMap::new(0, 2);
+        let _ = bus.operation_for_address_map(address_map);
         bus.release(Some(1));
 
         let result_two = bus.operation_result();
