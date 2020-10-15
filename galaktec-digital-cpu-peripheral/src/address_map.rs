@@ -1,8 +1,7 @@
-
 #[derive(Debug, Copy, Clone)]
 pub struct AddressMap {
     base_address: u32,
-    block_size: u32
+    block_size: u32,
 }
 
 impl AddressMap {
@@ -11,7 +10,7 @@ impl AddressMap {
 
         AddressMap {
             base_address,
-            block_size
+            block_size,
         }
     }
 

@@ -1,6 +1,6 @@
 /target
 **/*.rs.bk
-galaktec-digital-cpu-core/Cargo.lock
+galaktec-digital-cpu-riscv/Cargo.lock
 bin/
 pkg/
 wasm-pack.log

@@ -1,5 +1,5 @@
 [package]
-name = "galaktec-digital-cpu-core"
+name = "galaktec-digital-cpu-discrete"
 version = "0.1.0"
 authors = ["Matthew Philyaw <matthew.philyaw@gmail.com>"]
 edition = "2018"

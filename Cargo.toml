@@ -1,5 +1,6 @@
 [workspace]
 members = [
-    "galaktec-digital-cpu-core",
-    "galaktec-digital-cpu-peripherals"
+    "galaktec-digital-cpu-discrete",
+    "galaktec-digital-cpu-riscv",
+    "galaktec-digital-cpu-peripheral"
 ]
