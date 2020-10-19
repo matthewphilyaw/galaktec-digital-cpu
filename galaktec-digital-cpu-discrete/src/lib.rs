@@ -1,8 +1,8 @@
 pub mod clock;
 pub mod device;
 
-pub use crate::device::Device;
 pub use crate::clock::GenericClock;
+pub use crate::device::Device;
 use std::fmt::Debug;
 
 #[derive(Debug, Clone)]
@@ -20,7 +20,7 @@ pub trait Discrete: Debug {
 pub trait Unit<ExternalEvent, State>: Debug
 where
     State: Clone + Default + Debug,
-    ExternalEvent: Debug
+    ExternalEvent: Debug,
 {
     fn step(&mut self, phase: StepPhase, external_event_queue: &Vec<ExternalEvent>);
     fn commit(&mut self) -> State;
@@ -28,7 +28,8 @@ where
 
 pub trait EventHandler<ExternalEvent>: Debug
 where
-    ExternalEvent: Debug {
+    ExternalEvent: Debug,
+{
     fn add_event(&mut self, event: ExternalEvent);
 }
 

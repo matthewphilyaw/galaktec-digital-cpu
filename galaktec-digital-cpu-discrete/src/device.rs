@@ -1,13 +1,13 @@
-use crate::{Discrete, Observable, StepPhase, Unit, EventHandler};
-use std::rc::Rc;
+use crate::{Discrete, EventHandler, Observable, StepPhase, Unit};
 use std::cell::RefCell;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Device<ExternalEvent, State>
 where
     State: Clone + Default + Debug,
-    ExternalEvent: Debug
+    ExternalEvent: Debug,
 {
     external_event_queue_a: Vec<ExternalEvent>,
     external_event_queue_b: Vec<ExternalEvent>,
@@ -18,7 +18,7 @@ where
 impl<ExternalEvent, State> Device<ExternalEvent, State>
 where
     State: Clone + Default + Debug,
-    ExternalEvent: Debug
+    ExternalEvent: Debug,
 {
     pub fn new(unit: Box<dyn Unit<ExternalEvent, State>>) -> Self {
         Device {
@@ -37,7 +37,7 @@ where
 impl<ExternalEvent, State> EventHandler<ExternalEvent> for Device<ExternalEvent, State>
 where
     State: Clone + Default + Debug,
-    ExternalEvent: Debug
+    ExternalEvent: Debug,
 {
     fn add_event(&mut self, event: ExternalEvent) {
         self.external_event_queue_a.push(event);
@@ -47,7 +47,7 @@ where
 impl<ExternalEvent, State> Observable<State> for Device<ExternalEvent, State>
 where
     State: Clone + Default + Debug,
-    ExternalEvent: Debug
+    ExternalEvent: Debug,
 {
     fn state(&self) -> State {
         self.state.clone()
@@ -57,13 +57,16 @@ where
 impl<ExternalEvent, State> Discrete for Device<ExternalEvent, State>
 where
     State: Clone + Default + Debug,
-    ExternalEvent: Debug
+    ExternalEvent: Debug,
 {
     fn step(&mut self, phase: StepPhase) {
         self.unit.step(phase.clone(), &self.external_event_queue_b);
         self.external_event_queue_b.clear();
 
-        std::mem::swap(&mut self.external_event_queue_a, &mut self.external_event_queue_b);
+        std::mem::swap(
+            &mut self.external_event_queue_a,
+            &mut self.external_event_queue_b,
+        );
     }
 
     fn commit(&mut self) {

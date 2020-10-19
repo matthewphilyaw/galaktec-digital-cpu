@@ -1,7 +1,9 @@
-use galaktec_digital_cpu_discrete::{Device, StepPhase, Unit, EventHandler, Observable, GenericClock, Discrete};
-use std::rc::Rc;
+use galaktec_digital_cpu_discrete::{
+    Device, Discrete, EventHandler, GenericClock, Observable, StepPhase, Unit,
+};
 use std::cell::RefCell;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 #[derive(Debug)]
 enum ExternalCounterEvent {
@@ -26,19 +28,15 @@ impl Counter {
                 ExternalCounterEvent::Set(new_count) => {
                     println!("processing count:  {}", new_count);
                     self.count = *new_count
-                },
-                ExternalCounterEvent::Reset => self.count = 0
+                }
+                ExternalCounterEvent::Reset => self.count = 0,
             }
         }
     }
 }
 
 impl Unit<ExternalCounterEvent, usize> for Counter {
-    fn step(
-        &mut self,
-        phase: StepPhase,
-        external_event_queue: &Vec<ExternalCounterEvent>,
-    ) {
+    fn step(&mut self, phase: StepPhase, external_event_queue: &Vec<ExternalCounterEvent>) {
         println!("The queue is set: {:?}", &external_event_queue);
         match phase {
             StepPhase::First => self.count += 1,
@@ -92,7 +90,7 @@ impl Unit<usize, usize> for CounterReset {
                     self.counter.borrow_mut().set_counter(self.set_to);
                 }
             }
-            _ => ()
+            _ => (),
         }
     }
 
@@ -102,11 +100,15 @@ impl Unit<usize, usize> for CounterReset {
 }
 
 impl CounterReset {
-    fn new(trigger_at: usize, set_to: usize, counter: Rc<RefCell<dyn CounterInterface>>) -> Box<dyn Unit<usize, usize>> {
+    fn new(
+        trigger_at: usize,
+        set_to: usize,
+        counter: Rc<RefCell<dyn CounterInterface>>,
+    ) -> Box<dyn Unit<usize, usize>> {
         Box::new(CounterReset {
             trigger_at,
             set_to,
-            counter
+            counter,
         })
     }
 }
@@ -114,23 +116,22 @@ impl CounterReset {
 #[test]
 fn reset_clock() {
     let counter_device = Device::new_rc_ref(Counter::new());
-    let reset_device = Device::new_rc_ref(CounterReset::new(
-        10,
-        20,
-        counter_device.clone()
-    ));
+    let reset_device = Device::new_rc_ref(CounterReset::new(10, 20, counter_device.clone()));
 
-    let mut clock = GenericClock::new(
-        vec![
-            reset_device.clone(),
-            counter_device.clone(),
-        ]
-    );
+    let mut clock = GenericClock::new(vec![reset_device.clone(), counter_device.clone()]);
 
     for n in 0..11 {
-        println!("counter before step {}: {}", n, counter_device.borrow().state());
+        println!(
+            "counter before step {}: {}",
+            n,
+            counter_device.borrow().state()
+        );
         clock.step();
-        println!("counter after step {}: {}", n, counter_device.borrow().state());
+        println!(
+            "counter after step {}: {}",
+            n,
+            counter_device.borrow().state()
+        );
     }
 
     assert_eq!(counter_device.borrow().state(), 20);
