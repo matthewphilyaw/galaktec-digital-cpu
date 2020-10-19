@@ -1,23 +1,27 @@
+use crate::{Discrete, StepPhase, StepPhase::*};
+use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::Discrete;
-use std::cell::RefCell;
-
-struct GenericClock {
-    discrete_items: Vec<Rc<RefCell<dyn Discrete>>>
+#[derive(Debug)]
+pub struct GenericClock {
+    discrete_items: Vec<Rc<RefCell<dyn Discrete>>>,
+    phases: Vec<StepPhase>,
 }
 
 impl GenericClock {
-    fn new(discrete_items: Vec<Rc<RefCell<dyn Discrete>>>) -> Self {
+    pub fn new(discrete_items: Vec<Rc<RefCell<dyn Discrete>>>) -> Self {
         GenericClock {
-            discrete_items
+            discrete_items,
+            phases: vec![First, Second, Third],
         }
     }
 
-    fn step(&mut self) {
-        // First run all steps
-        for ref mut di in self.discrete_items.iter() {
-            di.borrow_mut().step();
+    pub fn step(&mut self) {
+        // First run all phases
+        for phase in &self.phases {
+            for ref mut di in self.discrete_items.iter() {
+                di.borrow_mut().step(phase.clone());
+            }
         }
 
         // Now commit all changes

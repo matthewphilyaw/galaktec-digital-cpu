@@ -1,29 +1,40 @@
-mod device;
-mod clock;
+pub mod clock;
+pub mod device;
 
-pub trait Discrete {
-    fn step(&mut self);
+pub use crate::device::Device;
+pub use crate::clock::GenericClock;
+use std::fmt::Debug;
+
+#[derive(Debug, Clone)]
+pub enum StepPhase {
+    First,
+    Second,
+    Third,
+}
+
+pub trait Discrete: Debug {
+    fn step(&mut self, phase: StepPhase);
     fn commit(&mut self);
 }
 
-pub trait Unit<InternalEvent, ExternalEvent, Result>
+pub trait Unit<ExternalEvent, State>: Debug
 where
-    Result: Default,
+    State: Clone + Default + Debug,
+    ExternalEvent: Debug
 {
-    fn step(&self, internal_event_queue: &mut Vec<InternalEvent>);
-    fn commit(
-        &mut self,
-        internal_events: &Vec<InternalEvent>,
-        external_events: &Vec<ExternalEvent>,
-    ) -> Result;
+    fn step(&mut self, phase: StepPhase, external_event_queue: &Vec<ExternalEvent>);
+    fn commit(&mut self) -> State;
 }
 
-pub trait Communal<ExternalEvent, Result>
+pub trait EventHandler<ExternalEvent>: Debug
 where
-    Result: Default,
-{
-    fn add_event(&mut self, external_event: ExternalEvent);
-    fn last_result(&self) -> &Result;
+    ExternalEvent: Debug {
+    fn add_event(&mut self, event: ExternalEvent);
 }
 
-
+pub trait Observable<State>: Debug
+where
+    State: Clone + Default + Debug,
+{
+    fn state(&self) -> State;
+}

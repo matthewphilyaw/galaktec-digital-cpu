@@ -1,16 +1,20 @@
 mod address_map;
-mod bus;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Data {
-    Byte(u32),
-    HalfWord(u32),
-    Word(u32),
+pub enum DataWidth {
+    Byte,
+    HalfWord,
+    Word,
 }
 
-pub trait Peripheral {
-    fn write(&mut self, address: u32, data: Data);
-    fn read(&self, address: u32);
-    fn read_result(&self) -> Option<u32>;
-    fn busy(&self) -> bool;
+pub enum Event {
+    Write {
+        data_width: DataWidth,
+        address: u32,
+        data: u32,
+    },
+    Read {
+        data_width: DataWidth,
+        address: u32,
+    },
 }

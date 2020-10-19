@@ -1,57 +1,72 @@
-use crate::{ Unit, Discrete, Communal };
+use crate::{Discrete, Observable, StepPhase, Unit, EventHandler};
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::fmt::Debug;
 
-pub struct GenericDevice<InternalEvent, ExternalEvent, Result> {
-    internal_event_queue: Vec<InternalEvent>,
-    external_event_queue: Vec<ExternalEvent>,
-    unit: Box<dyn Unit<InternalEvent, ExternalEvent, Result>>,
-    last_result: Result,
+#[derive(Debug)]
+pub struct Device<ExternalEvent, State>
+where
+    State: Clone + Default + Debug,
+    ExternalEvent: Debug
+{
+    external_event_queue_a: Vec<ExternalEvent>,
+    external_event_queue_b: Vec<ExternalEvent>,
+    unit: Box<dyn Unit<ExternalEvent, State>>,
+    state: State,
 }
 
-impl<InternalEvent, ExternalEvent, Result> GenericDevice<InternalEvent, ExternalEvent, Result>
-    where
-        Result: Default,
+impl<ExternalEvent, State> Device<ExternalEvent, State>
+where
+    State: Clone + Default + Debug,
+    ExternalEvent: Debug
 {
-    pub fn new(unit: Box<dyn Unit<InternalEvent, ExternalEvent, Result>>) -> Self {
-        GenericDevice {
-            internal_event_queue: Vec::with_capacity(10),
-            external_event_queue: Vec::with_capacity(10),
+    pub fn new(unit: Box<dyn Unit<ExternalEvent, State>>) -> Self {
+        Device {
+            external_event_queue_a: Vec::with_capacity(5),
+            external_event_queue_b: Vec::with_capacity(5),
             unit,
-            last_result: Default::default(),
+            state: Default::default(),
         }
     }
+
+    pub fn new_rc_ref(unit: Box<dyn Unit<ExternalEvent, State>>) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Device::new(unit)))
+    }
 }
 
-impl<InternalEvent, ExternalEvent, Result> Communal<ExternalEvent, Result>
-for GenericDevice<InternalEvent, ExternalEvent, Result>
-    where
-        Result: Default,
+impl<ExternalEvent, State> EventHandler<ExternalEvent> for Device<ExternalEvent, State>
+where
+    State: Clone + Default + Debug,
+    ExternalEvent: Debug
 {
     fn add_event(&mut self, event: ExternalEvent) {
-        self.external_event_queue.push(event);
-    }
-
-    fn last_result(&self) -> &Result {
-        &self.last_result
+        self.external_event_queue_a.push(event);
     }
 }
 
-impl<InternalEvent, ExternalEvent, Result> Discrete
-for GenericDevice<InternalEvent, ExternalEvent, Result>
-    where
-        Result: Default,
+impl<ExternalEvent, State> Observable<State> for Device<ExternalEvent, State>
+where
+    State: Clone + Default + Debug,
+    ExternalEvent: Debug
 {
-    fn step(&mut self) {
-        // Need to wrap this in state machine only allowing step to be called once
-        self.internal_event_queue.clear();
-        self.unit.step(&mut self.internal_event_queue);
+    fn state(&self) -> State {
+        self.state.clone()
+    }
+}
+
+impl<ExternalEvent, State> Discrete for Device<ExternalEvent, State>
+where
+    State: Clone + Default + Debug,
+    ExternalEvent: Debug
+{
+    fn step(&mut self, phase: StepPhase) {
+        self.unit.step(phase.clone(), &self.external_event_queue_b);
+        self.external_event_queue_b.clear();
+
+        std::mem::swap(&mut self.external_event_queue_a, &mut self.external_event_queue_b);
     }
 
     fn commit(&mut self) {
-        let result = self
-            .unit
-            .commit(&self.internal_event_queue, &self.external_event_queue);
-        self.last_result = result;
-        self.internal_event_queue.clear();
-        self.external_event_queue.clear();
+        self.state = self.unit.commit();
     }
 }
