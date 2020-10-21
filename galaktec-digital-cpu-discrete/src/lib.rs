@@ -1,41 +1,24 @@
 pub mod clock;
-pub mod device;
 
 pub use crate::clock::GenericClock;
-pub use crate::device::Device;
 use std::fmt::Debug;
 
-#[derive(Debug, Clone)]
-pub enum StepPhase {
-    First,
-    Second,
-    Third,
+pub trait React: Debug {
+    type Event: Clone + Debug;
+
+    fn react(&mut self, event: Self::Event);
 }
 
-pub trait Discrete: Debug {
-    fn step(&mut self, phase: StepPhase);
-    fn commit(&mut self);
+pub trait Observable: Debug {
+    type State: Clone + Default + Debug;
+
+    fn state(&self) -> Self::State;
 }
 
-pub trait Unit<ExternalEvent, State>: Debug
-where
-    State: Clone + Default + Debug,
-    ExternalEvent: Debug,
-{
-    fn step(&mut self, phase: StepPhase, external_event_queue: &Vec<ExternalEvent>);
-    fn commit(&mut self) -> State;
-}
+pub trait ReactiveDevice: Debug + React + Observable { }
 
-pub trait EventHandler<ExternalEvent>: Debug
-where
-    ExternalEvent: Debug,
-{
-    fn add_event(&mut self, event: ExternalEvent);
-}
-
-pub trait Observable<State>: Debug
-where
-    State: Clone + Default + Debug,
-{
-    fn state(&self) -> State;
+pub trait DiscreteDevice: Debug {
+    fn activate(&mut self);
+    fn settle(&mut self);
+    fn deactivate(&mut self);
 }

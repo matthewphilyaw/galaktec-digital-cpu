@@ -1,138 +1,148 @@
-use galaktec_digital_cpu_discrete::{
-    Device, Discrete, EventHandler, GenericClock, Observable, StepPhase, Unit,
-};
-use std::cell::RefCell;
-use std::fmt::Debug;
+use galaktec_digital_cpu_discrete::{DiscreteDevice, Observable, GenericClock, ReactiveDevice, React};
+
+use std::cell::{RefCell};
 use std::rc::Rc;
 
-#[derive(Debug)]
-enum ExternalCounterEvent {
+#[derive(Debug, Copy, Clone)]
+enum CounterOperation {
     Set(usize),
     Reset,
 }
 
 #[derive(Debug)]
 struct Counter {
+    events: Vec<CounterOperation>,
     count: usize,
+    last_count: usize
 }
 
 impl Counter {
-    fn new() -> Box<dyn Unit<ExternalCounterEvent, usize>> {
-        Box::new(Counter { count: 0 })
+    fn new() -> Self {
+        Counter {
+            events: vec![],
+            count: 0,
+            last_count: 0
+        }
     }
 
-    fn process_events(&mut self, events: &Vec<ExternalCounterEvent>) {
-        for e in events.iter() {
-            println!("processing events:  {:?}", e);
-            match e {
-                ExternalCounterEvent::Set(new_count) => {
-                    println!("processing count:  {}", new_count);
-                    self.count = *new_count
-                }
-                ExternalCounterEvent::Reset => self.count = 0,
+    fn into_rc(self) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(self))
+    }
+}
+
+impl ReactiveDevice for Counter { }
+
+impl DiscreteDevice for Counter {
+    fn activate(&mut self) {
+        self.count += 1;
+    }
+
+    fn settle(&mut self) {
+        for ev in self.events.iter() {
+            match ev {
+                CounterOperation::Set(value) => self.count = *value,
+                CounterOperation::Reset => self.count = 0
             }
         }
     }
-}
 
-impl Unit<ExternalCounterEvent, usize> for Counter {
-    fn step(&mut self, phase: StepPhase, external_event_queue: &Vec<ExternalCounterEvent>) {
-        println!("The queue is set: {:?}", &external_event_queue);
-        match phase {
-            StepPhase::First => self.count += 1,
-            StepPhase::Second | StepPhase::Third => {
-                println!("processing phase: {:?}", phase);
-                self.process_events(&external_event_queue)
-            }
-        };
-    }
-
-    fn commit(&mut self) -> usize {
-        self.count
+    fn deactivate(&mut self) {
+        self.last_count = self.count;
     }
 }
 
-trait CounterInterface: Debug {
-    fn set_counter(&mut self, value: usize);
-    fn reset_counter(&mut self);
-    fn counter_value(&self) -> usize;
-}
+impl Observable for Counter {
+    type State = usize;
 
-impl CounterInterface for Device<ExternalCounterEvent, usize> {
-    fn set_counter(&mut self, value: usize) {
-        self.add_event(ExternalCounterEvent::Set(value));
-    }
-
-    fn reset_counter(&mut self) {
-        self.add_event(ExternalCounterEvent::Reset);
-    }
-
-    fn counter_value(&self) -> usize {
-        self.state()
+    fn state(&self) -> usize {
+        self.last_count
     }
 }
 
+impl React for Counter {
+    type Event = CounterOperation;
+
+    fn react(&mut self, event: Self::Event) {
+        self.events.push(event);
+    }
+}
+
+type CounterDevice = Rc<RefCell<dyn ReactiveDevice<Event = CounterOperation, State = usize>>>;
 #[derive(Debug)]
 struct CounterReset {
     trigger_at: usize,
     set_to: usize,
-    counter: Rc<RefCell<dyn CounterInterface>>,
-}
-
-impl Unit<usize, usize> for CounterReset {
-    fn step(&mut self, phase: StepPhase, _external_event_queue: &Vec<usize>) {
-        match phase {
-            StepPhase::First => {
-                let current_count = self.counter.borrow().counter_value();
-                println!("counter value: {}", current_count);
-                if current_count == self.trigger_at {
-                    println!("setting counter to: {}", self.set_to);
-                    self.counter.borrow_mut().set_counter(self.set_to);
-                }
-            }
-            _ => (),
-        }
-    }
-
-    fn commit(&mut self) -> usize {
-        12
-    }
+    counter_device: CounterDevice,
 }
 
 impl CounterReset {
     fn new(
         trigger_at: usize,
         set_to: usize,
-        counter: Rc<RefCell<dyn CounterInterface>>,
-    ) -> Box<dyn Unit<usize, usize>> {
-        Box::new(CounterReset {
+        counter_device: CounterDevice
+    ) -> Self {
+        CounterReset {
             trigger_at,
             set_to,
-            counter,
-        })
+            counter_device
+        }
+    }
+
+    fn into_rc(self) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(self))
+    }
+}
+
+impl DiscreteDevice for CounterReset {
+    fn activate(&mut self) {
+        let current_count = self.counter_device.borrow().state();
+
+        if current_count == self.trigger_at {
+            self.counter_device.borrow_mut().react(CounterOperation::Set(
+                self.set_to
+            ));
+        }
+    }
+
+    fn settle(&mut self) {
+
+    }
+
+    fn deactivate(&mut self) {
+
     }
 }
 
 #[test]
-fn reset_clock() {
-    let counter_device = Device::new_rc_ref(Counter::new());
-    let reset_device = Device::new_rc_ref(CounterReset::new(10, 20, counter_device.clone()));
+fn counter_test() {
+    let counter = Counter::new().into_rc();
+    let counter_reset = CounterReset::new(
+        10,
+        20,
+        counter.clone(),
+    ).into_rc();
 
-    let mut clock = GenericClock::new(vec![reset_device.clone(), counter_device.clone()]);
+
+    let mut clock = GenericClock::new(
+        vec![
+            counter.clone(),
+            counter_reset
+        ]
+    );
 
     for n in 0..11 {
         println!(
             "counter before step {}: {}",
             n,
-            counter_device.borrow().state()
+            counter.borrow().state()
         );
         clock.step();
         println!(
             "counter after step {}: {}",
             n,
-            counter_device.borrow().state()
+            counter.borrow().state()
         );
     }
 
-    assert_eq!(counter_device.borrow().state(), 20);
+    assert_eq!(counter.borrow().count, 20);
 }
