@@ -15,7 +15,7 @@ pub trait Observable: Debug {
     fn state(&self) -> Self::State;
 }
 
-pub trait ReactiveDevice: Debug + React + Observable { }
+pub trait ReactiveDevice: Debug + React + Observable {}
 
 pub trait DiscreteDevice: Debug {
     fn activate(&mut self);

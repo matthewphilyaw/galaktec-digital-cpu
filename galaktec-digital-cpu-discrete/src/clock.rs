@@ -1,4 +1,4 @@
-use crate::{DiscreteDevice};
+use crate::DiscreteDevice;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -6,14 +6,12 @@ type Discrete = RefCell<dyn DiscreteDevice>;
 
 #[derive(Debug)]
 pub struct GenericClock {
-    discrete_items: Vec<Rc<Discrete>>
+    discrete_items: Vec<Rc<Discrete>>,
 }
 
 impl GenericClock {
     pub fn new(discrete_items: Vec<Rc<Discrete>>) -> Self {
-        GenericClock {
-            discrete_items
-        }
+        GenericClock { discrete_items }
     }
 
     pub fn step(&mut self) {

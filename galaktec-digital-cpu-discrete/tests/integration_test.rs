@@ -1,6 +1,8 @@
-use galaktec_digital_cpu_discrete::{DiscreteDevice, Observable, GenericClock, ReactiveDevice, React};
+use galaktec_digital_cpu_discrete::{
+    DiscreteDevice, GenericClock, Observable, React, ReactiveDevice,
+};
 
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Debug, Copy, Clone)]
@@ -13,7 +15,7 @@ enum CounterOperation {
 struct Counter {
     events: Vec<CounterOperation>,
     count: usize,
-    last_count: usize
+    last_count: usize,
 }
 
 impl Counter {
@@ -21,7 +23,7 @@ impl Counter {
         Counter {
             events: vec![],
             count: 0,
-            last_count: 0
+            last_count: 0,
         }
     }
 
@@ -30,7 +32,7 @@ impl Counter {
     }
 }
 
-impl ReactiveDevice for Counter { }
+impl ReactiveDevice for Counter {}
 
 impl DiscreteDevice for Counter {
     fn activate(&mut self) {
@@ -41,7 +43,7 @@ impl DiscreteDevice for Counter {
         for ev in self.events.iter() {
             match ev {
                 CounterOperation::Set(value) => self.count = *value,
-                CounterOperation::Reset => self.count = 0
+                CounterOperation::Reset => self.count = 0,
             }
         }
     }
@@ -76,15 +78,11 @@ struct CounterReset {
 }
 
 impl CounterReset {
-    fn new(
-        trigger_at: usize,
-        set_to: usize,
-        counter_device: CounterDevice
-    ) -> Self {
+    fn new(trigger_at: usize, set_to: usize, counter_device: CounterDevice) -> Self {
         CounterReset {
             trigger_at,
             set_to,
-            counter_device
+            counter_device,
         }
     }
 
@@ -98,50 +96,28 @@ impl DiscreteDevice for CounterReset {
         let current_count = self.counter_device.borrow().state();
 
         if current_count == self.trigger_at {
-            self.counter_device.borrow_mut().react(CounterOperation::Set(
-                self.set_to
-            ));
+            self.counter_device
+                .borrow_mut()
+                .react(CounterOperation::Set(self.set_to));
         }
     }
 
-    fn settle(&mut self) {
+    fn settle(&mut self) {}
 
-    }
-
-    fn deactivate(&mut self) {
-
-    }
+    fn deactivate(&mut self) {}
 }
 
 #[test]
 fn counter_test() {
     let counter = Counter::new().into_rc();
-    let counter_reset = CounterReset::new(
-        10,
-        20,
-        counter.clone(),
-    ).into_rc();
+    let counter_reset = CounterReset::new(10, 20, counter.clone()).into_rc();
 
-
-    let mut clock = GenericClock::new(
-        vec![
-            counter.clone(),
-            counter_reset
-        ]
-    );
+    let mut clock = GenericClock::new(vec![counter.clone(), counter_reset]);
 
     for n in 0..11 {
-        println!(
-            "counter before step {}: {}",
-            n,
-            counter.borrow().state()
-        );
+        println!("counter before step {}: {}", n, counter.borrow().state());
         clock.step();
-        println!(
-            "counter after step {}: {}",
-            n,
-            counter.borrow().state()
-        );
+        println!("counter after step {}: {}", n, counter.borrow().state());
     }
 
     assert_eq!(counter.borrow().count, 20);
