@@ -2,10 +2,10 @@ use galaktec_digital_cpu_discrete::{
     DiscreteDevice, GenericClock, Observable, React, ReactiveDevice,
 };
 
+use galaktec_digital_cpu_core::{Discrete, GenericIODevice};
+use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::rc::Rc;
-use galaktec_digital_cpu_core::{GenericIODevice, Discrete};
-use std::borrow::{Borrow, BorrowMut};
 
 #[derive(Debug, Copy, Clone)]
 enum CounterOperation {
@@ -48,7 +48,6 @@ impl Discrete for Counter {
         self.io_device.borrow_mut().clear_events();
     }
 }
-
 
 type CounterDevice = Rc<RefCell<dyn ReactiveDevice<Event = CounterOperation, State = usize>>>;
 #[derive(Debug)]

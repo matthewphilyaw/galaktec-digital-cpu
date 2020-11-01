@@ -1,19 +1,25 @@
 use std::fmt::Debug;
 
 pub trait Input<Event>: Debug
-    where Event: Debug + Clone + PartialEq {
+where
+    Event: Debug + Clone + PartialEq,
+{
     fn push(&mut self, event: Event) -> bool;
 }
 
 pub trait Output<Data>: Debug
-    where Data: Debug + Default + Clone {
+where
+    Data: Debug + Default + Clone,
+{
     fn output(&self) -> Data;
 }
 
 pub trait IODevice<Event, Data>: Debug + Input<Event> + Output<Data>
-    where Event: Debug + Clone + PartialEq,
-          Data: Debug + Default + Clone { }
-
+where
+    Event: Debug + Clone + PartialEq,
+    Data: Debug + Default + Clone,
+{
+}
 
 pub trait Discrete: Debug {
     fn activate(&mut self);
@@ -23,20 +29,23 @@ pub trait Discrete: Debug {
 
 #[derive(Debug)]
 pub struct GenericIODevice<Event, Data>
-    where Event: Debug + Clone + PartialEq,
-          Data: Debug + Default + Clone {
+where
+    Event: Debug + Clone + PartialEq,
+    Data: Debug + Default + Clone,
+{
     event_vec: Vec<Event>,
     data: Data,
 }
 
 impl<Event, Data> GenericIODevice<Event, Data>
-    where Event: Debug + Clone + PartialEq,
-          Data: Debug + Default + Clone {
-
+where
+    Event: Debug + Clone + PartialEq,
+    Data: Debug + Default + Clone,
+{
     pub fn new() -> Self {
         GenericIODevice {
             event_vec: vec![],
-            data: Data::default()
+            data: Data::default(),
         }
     }
 
@@ -54,8 +63,10 @@ impl<Event, Data> GenericIODevice<Event, Data>
 }
 
 impl<Event, Data> Input<Event> for GenericIODevice<Event, Data>
-    where Event: Debug + Clone + PartialEq,
-          Data: Debug + Default + Clone {
+where
+    Event: Debug + Clone + PartialEq,
+    Data: Debug + Default + Clone,
+{
     fn push(&mut self, event: Event) -> bool {
         if self.event_vec.contains(&event) {
             return false;
@@ -67,8 +78,10 @@ impl<Event, Data> Input<Event> for GenericIODevice<Event, Data>
 }
 
 impl<Event, Data> Output<Data> for GenericIODevice<Event, Data>
-    where Event: Debug + Clone + PartialEq,
-          Data: Debug + Default + Clone {
+where
+    Event: Debug + Clone + PartialEq,
+    Data: Debug + Default + Clone,
+{
     fn output(&self) -> Data {
         self.data.clone()
     }
