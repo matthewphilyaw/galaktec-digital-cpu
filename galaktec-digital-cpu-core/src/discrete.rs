@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 pub trait Input<Event>: Debug
     where Event: Debug + Clone + PartialEq {
-    fn add_event(&mut self, event: Event) -> bool;
+    fn push(&mut self, event: Event) -> bool;
 }
 
 pub trait Output<Data>: Debug
@@ -13,6 +13,7 @@ pub trait Output<Data>: Debug
 pub trait IODevice<Event, Data>: Debug + Input<Event> + Output<Data>
     where Event: Debug + Clone + PartialEq,
           Data: Debug + Default + Clone { }
+
 
 pub trait Discrete: Debug {
     fn activate(&mut self);
@@ -55,7 +56,7 @@ impl<Event, Data> GenericIODevice<Event, Data>
 impl<Event, Data> Input<Event> for GenericIODevice<Event, Data>
     where Event: Debug + Clone + PartialEq,
           Data: Debug + Default + Clone {
-    fn add_event(&mut self, event: Event) -> bool {
+    fn push(&mut self, event: Event) -> bool {
         if self.event_vec.contains(&event) {
             return false;
         }

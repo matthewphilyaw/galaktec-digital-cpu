@@ -1,9 +1,6 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use crate::discrete::Discrete;
 
-type DiscreteDevice = Rc<RefCell<dyn Discrete>>;
+type DiscreteDevice = Box<dyn Discrete>;
 
 #[derive(Debug)]
 pub struct GenericClock {
@@ -16,16 +13,16 @@ impl GenericClock {
     }
 
     pub fn step(&mut self) {
-        for ref mut di in self.discrete_items.iter() {
-            di.borrow_mut().activate();
+        for di in self.discrete_items.iter_mut() {
+            di.activate();
         }
 
-        for ref mut di in self.discrete_items.iter() {
-            di.borrow_mut().process_input();
+        for di in self.discrete_items.iter_mut() {
+            di.process_input();
         }
 
-        for ref mut di in self.discrete_items.iter() {
-            di.borrow_mut().deactivate();
+        for di in self.discrete_items.iter_mut() {
+            di.deactivate();
         }
     }
 }

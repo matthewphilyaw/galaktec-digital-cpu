@@ -4,6 +4,8 @@ use galaktec_digital_cpu_discrete::{
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use galaktec_digital_cpu_core::{GenericIODevice, Discrete};
+use std::borrow::{Borrow, BorrowMut};
 
 #[derive(Debug, Copy, Clone)]
 enum CounterOperation {
@@ -13,34 +15,27 @@ enum CounterOperation {
 
 #[derive(Debug)]
 struct Counter {
-    events: Vec<CounterOperation>,
-    count: usize,
-    last_count: usize,
+    io_device: GenericIODevice<CounterOperation, usize>,
+    temp_count: usize,
 }
 
 impl Counter {
-    fn new() -> Self {
+    fn new(io_device: GenericIODevice<CounterOperation, usize>) -> Self {
         Counter {
-            events: vec![],
-            count: 0,
-            last_count: 0,
+            io_device,
+            temp_count: 0,
         }
-    }
-
-    fn into_rc(self) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(self))
     }
 }
 
-impl ReactiveDevice for Counter {}
-
-impl DiscreteDevice for Counter {
+impl Discrete for Counter {
     fn activate(&mut self) {
         self.count += 1;
     }
 
-    fn settle(&mut self) {
-        for ev in self.events.iter() {
+    fn process_input(&mut self) {
+        let io = &self.io_device;
+        for ev in io.events() {
             match ev {
                 CounterOperation::Set(value) => self.count = *value,
                 CounterOperation::Reset => self.count = 0,
@@ -49,25 +44,11 @@ impl DiscreteDevice for Counter {
     }
 
     fn deactivate(&mut self) {
-        self.last_count = self.count;
+        self.io_device.borrow_mut().set_data(self.temp_count);
+        self.io_device.borrow_mut().clear_events();
     }
 }
 
-impl Observable for Counter {
-    type State = usize;
-
-    fn state(&self) -> usize {
-        self.last_count
-    }
-}
-
-impl React for Counter {
-    type Event = CounterOperation;
-
-    fn react(&mut self, event: Self::Event) {
-        self.events.push(event);
-    }
-}
 
 type CounterDevice = Rc<RefCell<dyn ReactiveDevice<Event = CounterOperation, State = usize>>>;
 #[derive(Debug)]
