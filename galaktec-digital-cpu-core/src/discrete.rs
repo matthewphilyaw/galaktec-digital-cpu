@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::fmt::Debug;
+use std::rc::Weak;
 
 pub trait Input<Event>: Debug
 where
@@ -19,6 +21,14 @@ where
     Event: Debug + Clone + PartialEq,
     Data: Debug + Default + Clone,
 {
+}
+
+pub trait WithIO<Event, Data>: Debug
+where
+    Event: Debug + Clone + PartialEq,
+    Data: Debug + Default + Clone,
+{
+    fn io(&self) -> Weak<RefCell<GenericIODevice<Event, Data>>>;
 }
 
 pub trait Discrete: Debug {
@@ -85,4 +95,11 @@ where
     fn output(&self) -> Data {
         self.data.clone()
     }
+}
+
+impl<Event, Data> IODevice<Event, Data> for GenericIODevice<Event, Data>
+where
+    Event: Debug + Clone + PartialEq,
+    Data: Debug + Default + Clone,
+{
 }

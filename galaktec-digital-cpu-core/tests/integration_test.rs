@@ -1,13 +1,11 @@
-use galaktec_digital_cpu_discrete::{
-    DiscreteDevice, GenericClock, Observable, React, ReactiveDevice,
+use galaktec_digital_cpu_core::{
+    Discrete, GenericClock, GenericIODevice, IODevice, Input, Output, WithIO,
 };
 
-use galaktec_digital_cpu_core::{Discrete, GenericIODevice};
-use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 enum CounterOperation {
     Set(usize),
     Reset,
@@ -15,14 +13,16 @@ enum CounterOperation {
 
 #[derive(Debug)]
 struct Counter {
-    io_device: GenericIODevice<CounterOperation, usize>,
+    io_device: Rc<RefCell<GenericIODevice<CounterOperation, usize>>>,
     temp_count: usize,
 }
 
 impl Counter {
-    fn new(io_device: GenericIODevice<CounterOperation, usize>) -> Self {
+    fn new() -> Self {
+        let io = GenericIODevice::new();
+
         Counter {
-            io_device,
+            io_device: Rc::new(RefCell::new(io)),
             temp_count: 0,
         }
     }
@@ -30,15 +30,14 @@ impl Counter {
 
 impl Discrete for Counter {
     fn activate(&mut self) {
-        self.count += 1;
+        self.temp_count += 1;
     }
 
     fn process_input(&mut self) {
-        let io = &self.io_device;
-        for ev in io.events() {
+        for ev in self.io_device.borrow().events() {
             match ev {
-                CounterOperation::Set(value) => self.count = *value,
-                CounterOperation::Reset => self.count = 0,
+                CounterOperation::Set(value) => self.temp_count = *value,
+                CounterOperation::Reset => self.temp_count = 0,
             }
         }
     }
@@ -49,7 +48,13 @@ impl Discrete for Counter {
     }
 }
 
-type CounterDevice = Rc<RefCell<dyn ReactiveDevice<Event = CounterOperation, State = usize>>>;
+impl WithIO<CounterOperation, usize> for Counter {
+    fn io(&self) -> Weak<RefCell<GenericIODevice<CounterOperation, usize>>> {
+        Rc::downgrade(&self.io_device)
+    }
+}
+
+type CounterDevice = Weak<RefCell<dyn IODevice<CounterOperation, usize>>>;
 #[derive(Debug)]
 struct CounterReset {
     trigger_at: usize,
@@ -65,40 +70,45 @@ impl CounterReset {
             counter_device,
         }
     }
-
-    fn into_rc(self) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(self))
-    }
 }
 
-impl DiscreteDevice for CounterReset {
+impl Discrete for CounterReset {
     fn activate(&mut self) {
-        let current_count = self.counter_device.borrow().state();
+        if let Some(cd) = self.counter_device.upgrade() {
+            let current_count = cd.borrow().output();
 
-        if current_count == self.trigger_at {
-            self.counter_device
-                .borrow_mut()
-                .react(CounterOperation::Set(self.set_to));
+            if current_count == self.trigger_at {
+                cd.borrow_mut().push(CounterOperation::Set(self.set_to));
+            }
         }
     }
 
-    fn settle(&mut self) {}
+    fn process_input(&mut self) {}
 
     fn deactivate(&mut self) {}
 }
 
 #[test]
 fn counter_test() {
-    let counter = Counter::new().into_rc();
-    let counter_reset = CounterReset::new(10, 20, counter.clone()).into_rc();
+    let counter = Box::new(Counter::new());
+    let counter_reset = Box::new(CounterReset::new(10, 20, counter.io()));
 
-    let mut clock = GenericClock::new(vec![counter.clone(), counter_reset]);
+    let observer = counter.io();
+    let mut clock = GenericClock::new(vec![counter, counter_reset]);
 
     for n in 0..11 {
-        println!("counter before step {}: {}", n, counter.borrow().state());
+        println!(
+            "counter before step {}: {}",
+            n,
+            observer.upgrade().unwrap().borrow().output()
+        );
         clock.step();
-        println!("counter after step {}: {}", n, counter.borrow().state());
+        println!(
+            "counter after step {}: {}",
+            n,
+            observer.upgrade().unwrap().borrow().output()
+        );
     }
 
-    assert_eq!(counter.borrow().count, 20);
+    assert_eq!(observer.upgrade().unwrap().borrow().output(), 20);
 }
