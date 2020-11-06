@@ -78,7 +78,7 @@ where
     Data: Debug + Default + Clone,
 {
     fn push(&mut self, event: Event) -> bool {
-        if self.event_vec.contains(&event) {
+        if self.event_vec.len() > 0 {
             return false;
         }
 

@@ -1,20 +1,14 @@
-mod address_map;
+use std::fmt::Debug;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum DataWidth {
-    Byte,
-    HalfWord,
-    Word,
+mod address_map;
+mod memory;
+
+pub trait WithPeripheral {
+    fn peripheral(&self) -> Box<dyn Peripheral>;
 }
 
-pub enum Event {
-    Write {
-        data_width: DataWidth,
-        address: u32,
-        data: u32,
-    },
-    Read {
-        data_width: DataWidth,
-        address: u32,
-    },
+pub trait Peripheral: Debug {
+    fn write(&mut self, address: usize, data: usize) -> bool;
+    fn read(&mut self, address: usize) -> bool;
+    fn output(&self) -> usize;
 }
