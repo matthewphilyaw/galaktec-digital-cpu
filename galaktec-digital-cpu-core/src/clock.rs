@@ -14,15 +14,11 @@ impl GenericClock {
 
     pub fn step(&mut self) {
         for di in self.discrete_items.iter_mut() {
-            di.activate();
+            di.send();
         }
 
         for di in self.discrete_items.iter_mut() {
-            di.process_input();
-        }
-
-        for di in self.discrete_items.iter_mut() {
-            di.deactivate();
+            di.update();
         }
     }
 }

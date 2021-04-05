@@ -33,22 +33,17 @@ impl Memory {
 }
 
 impl Discrete for Memory {
-    fn activate(&mut self) {
-        if self.operation.is_some() && self.counter < self.latency {
-            self.counter += 1;
-        }
-    }
-
-    fn process_input(&mut self) {
+    fn send(&mut self) {}
+    fn update(&mut self) {
         if self.operation.is_none() {
             if let Some(event) = self.io_device.borrow().events().first() {
                 self.operation = Some(event.clone());
-                self.counter += 1;
+                self.counter = 1;
             }
+        } else if self.operation.is_some() && self.counter < self.latency {
+            self.counter += 1;
         }
-    }
 
-    fn deactivate(&mut self) {
         if self.operation.is_some() && self.counter == self.latency {
             let op = mem::replace(&mut self.operation, None).unwrap();
             match op {
@@ -135,9 +130,7 @@ mod tests {
             assert_eq!(0, memory.raw_buffer[0]);
 
             for _ in 0..cycles {
-                memory.activate();
-                memory.process_input();
-                memory.deactivate();
+                memory.update();
             }
 
             assert_eq!(input, memory.raw_buffer[0])
@@ -158,9 +151,7 @@ mod tests {
             assert_eq!(0, memory.io_device.borrow().output());
 
             for _ in 0..cycles {
-                memory.activate();
-                memory.process_input();
-                memory.deactivate();
+                memory.update();
             }
 
             assert_eq!(input, memory.io_device.borrow().output());
@@ -179,18 +170,14 @@ mod tests {
 
         assert_eq!(0, memory.io_device.borrow().output());
 
-        memory.activate();
-        memory.process_input();
-        memory.deactivate();
+        memory.update();
 
         assert_eq!(input_one, memory.io_device.borrow().output());
 
         let input_two = 456;
         memory.raw_buffer[0] = input_two;
 
-        memory.activate();
-        memory.process_input();
-        memory.deactivate();
+        memory.update();
 
         assert_ne!(input_two, memory.io_device.borrow().output());
     }
@@ -223,9 +210,7 @@ mod tests {
         assert_eq!(per.write(0, input), true);
         assert_eq!(per.write(0, input), false);
 
-        memory.activate();
-        memory.process_input();
-        memory.deactivate();
+        memory.update();
 
         assert_eq!(input, memory.raw_buffer[0]);
 
@@ -233,9 +218,7 @@ mod tests {
         assert_eq!(per.write(0, input_two), true);
         assert_eq!(per.write(0, input_two), false);
 
-        memory.activate();
-        memory.process_input();
-        memory.deactivate();
+        memory.update();
 
         assert_eq!(input_two, memory.raw_buffer[0]);
     }
@@ -251,9 +234,7 @@ mod tests {
         assert_eq!(per.read(0), true);
         assert_eq!(per.read(0), false);
 
-        memory.activate();
-        memory.process_input();
-        memory.deactivate();
+        memory.update();
 
         assert_eq!(input, memory.io_device.borrow().output());
 
@@ -263,9 +244,7 @@ mod tests {
         assert_eq!(per.read(0), true);
         assert_eq!(per.read(0), false);
 
-        memory.activate();
-        memory.process_input();
-        memory.deactivate();
+        memory.update();
 
         assert_eq!(input_two, memory.io_device.borrow().output());
     }

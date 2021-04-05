@@ -1,5 +1,5 @@
 use galaktec_digital_cpu_core::{
-    Discrete, GenericClock, GenericIODevice, IODevice, Input, Output, WithIO,
+    Discrete, GenericClock, GenericIODevice, IODevice, Output, WithIO,
 };
 
 use std::cell::RefCell;
@@ -14,7 +14,6 @@ enum CounterOperation {
 #[derive(Debug)]
 struct Counter {
     io_device: Rc<RefCell<GenericIODevice<CounterOperation, usize>>>,
-    temp_count: usize,
 }
 
 impl Counter {
@@ -23,27 +22,23 @@ impl Counter {
 
         Counter {
             io_device: Rc::new(RefCell::new(io)),
-            temp_count: 0,
         }
     }
 }
 
 impl Discrete for Counter {
-    fn activate(&mut self) {
-        self.temp_count += 1;
-    }
+    fn send(&mut self) {}
+    fn update(&mut self) {
+        let mut next = self.io_device.borrow().output() + 1;
 
-    fn process_input(&mut self) {
         for ev in self.io_device.borrow().events() {
-            match ev {
-                CounterOperation::Set(value) => self.temp_count = *value,
-                CounterOperation::Reset => self.temp_count = 0,
+            next = match ev {
+                CounterOperation::Set(value) => *value,
+                CounterOperation::Reset => 0,
             }
         }
-    }
 
-    fn deactivate(&mut self) {
-        self.io_device.borrow_mut().set_data(self.temp_count);
+        self.io_device.borrow_mut().set_data(next);
         self.io_device.borrow_mut().clear_events();
     }
 }
@@ -73,7 +68,7 @@ impl CounterReset {
 }
 
 impl Discrete for CounterReset {
-    fn activate(&mut self) {
+    fn send(&mut self) {
         if let Some(cd) = self.counter_device.upgrade() {
             let current_count = cd.borrow().output();
 
@@ -82,10 +77,7 @@ impl Discrete for CounterReset {
             }
         }
     }
-
-    fn process_input(&mut self) {}
-
-    fn deactivate(&mut self) {}
+    fn update(&mut self) {}
 }
 
 #[test]
@@ -96,19 +88,12 @@ fn counter_test() {
     let observer = counter.io();
     let mut clock = GenericClock::new(vec![counter, counter_reset]);
 
-    for n in 0..11 {
-        println!(
-            "counter before step {}: {}",
-            n,
-            observer.upgrade().unwrap().borrow().output()
-        );
+    for n in 0..10 {
+        assert_eq!(observer.upgrade().unwrap().borrow().output(), n);
         clock.step();
-        println!(
-            "counter after step {}: {}",
-            n,
-            observer.upgrade().unwrap().borrow().output()
-        );
+        assert_eq!(observer.upgrade().unwrap().borrow().output(), n + 1);
     }
 
+    clock.step();
     assert_eq!(observer.upgrade().unwrap().borrow().output(), 20);
 }
