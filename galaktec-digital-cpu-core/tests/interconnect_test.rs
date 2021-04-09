@@ -1,27 +1,27 @@
-use galaktec_digital_cpu_core::{GenericClock, Interconnect, Peripheral, Controller, DiscreteUnit};
-use std::rc::{Rc, Weak};
+use galaktec_digital_cpu_core::{Controller, DiscreteUnit, GenericClock, Interconnect, Peripheral};
 use std::cell::RefCell;
 use std::ops::DerefMut;
+use std::rc::{Rc, Weak};
 
 /* -------------- Counter Peripheral ---------------------- */
 
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 enum CounterOperation {
     Set(usize),
-    Reset
+    Reset,
 }
 
 #[derive(Debug)]
 struct CounterPeripheral {
     count: usize,
-    controller: Rc<RefCell<dyn Controller<CounterOperation, usize>>>
+    controller: Rc<RefCell<dyn Controller<CounterOperation, usize>>>,
 }
 
 impl CounterPeripheral {
     fn new(controller: Rc<RefCell<dyn Controller<CounterOperation, usize>>>) -> Self {
         CounterPeripheral {
             count: 0,
-            controller
+            controller,
         }
     }
 }
@@ -34,7 +34,7 @@ impl DiscreteUnit for CounterPeripheral {
         self.count = if let Some(op) = input {
             match op {
                 CounterOperation::Set(new_value) => new_value,
-                CounterOperation::Reset => 0
+                CounterOperation::Reset => 0,
             }
         } else {
             self.count + 1
@@ -54,11 +54,15 @@ struct CounterResetController {
 }
 
 impl CounterResetController {
-    fn new(trigger_at: usize, set_to: usize, counter_peripheral: Rc<RefCell<dyn Peripheral<CounterOperation, usize>>>) -> Self {
+    fn new(
+        trigger_at: usize,
+        set_to: usize,
+        counter_peripheral: Rc<RefCell<dyn Peripheral<CounterOperation, usize>>>,
+    ) -> Self {
         CounterResetController {
             trigger_at,
             set_to,
-            counter_peripheral
+            counter_peripheral,
         }
     }
 }
@@ -77,22 +81,27 @@ impl DiscreteUnit for CounterResetController {
 
 #[test]
 fn counter_test() {
-    let counter_interconnect: Rc<RefCell<Interconnect<CounterOperation, usize>>> = Rc::new(RefCell::new(Interconnect::new()));
+    let counter_interconnect: Rc<RefCell<Interconnect<CounterOperation, usize>>> =
+        Rc::new(RefCell::new(Interconnect::new()));
     let counter = Box::new(CounterPeripheral::new(counter_interconnect.clone()));
-    let counter_reset = Box::new(CounterResetController::new(10, 20, counter_interconnect.clone()));
+    let counter_reset = Box::new(CounterResetController::new(
+        10,
+        20,
+        counter_interconnect.clone(),
+    ));
 
     let mut clock = GenericClock::new(vec![counter, counter_reset]);
 
     for n in 0..11 {
         clock.step();
 
-        let count = Peripheral::receive(counter_interconnect.as_ref().borrow_mut().deref_mut()).unwrap();
+        let count =
+            Peripheral::receive(counter_interconnect.as_ref().borrow_mut().deref_mut()).unwrap();
 
         if n == 11 {
             assert_eq!(count, 20);
         } else {
             assert_eq!(count, n + 1);
         }
-
     }
 }
