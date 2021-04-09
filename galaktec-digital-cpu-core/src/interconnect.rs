@@ -1,79 +1,71 @@
-use std::fmt::Debug;
 use std::borrow::Borrow;
+use std::fmt::Debug;
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum State<T> {
-    Ready(T),
-    Pending,
-    None
-}
-
-pub trait Interface<Command, Data>: Debug
+pub trait Peripheral<Input, Output>: Debug
 where
-    Command: Debug + Clone + PartialEq,
-    Data: Debug + Clone + PartialEq,
+    Input: Debug + Clone + PartialEq,
+    Output: Debug + Clone + PartialEq,
 {
-    fn send_command(&mut self, command: Command);
-    fn command_acknowledged(&self) -> bool;
-    fn state(&self) -> State<Data>;
+    fn transmit(&mut self, command: Input);
+    fn receive(&mut self) -> Option<Output>;
 }
 
-pub trait Implementation<Command, Data>: Debug
+pub trait Controller<Input, Output>: Debug
 where
-    Command: Debug + Clone + PartialEq,
-    Data: Debug + Clone + PartialEq,
+    Input: Debug + Clone + PartialEq,
+    Output: Debug + Clone + PartialEq,
 {
-    fn read_command(&self) -> Option<Command>;
-    fn acknowledge_command(&mut self);
-    fn set_state(&mut self, state: State<Data>);
+    fn receive(&mut self) -> Option<Input>;
+    fn transmit(&mut self, output: Output);
 }
-
 
 #[derive(Debug)]
-pub struct Interconnect<Command, Data>
+pub struct Interconnect<Input, Output>
 where
-    Command: Debug + Clone + PartialEq,
-    Data: Debug + Clone + PartialEq,
+    Input: Debug + Clone + PartialEq,
+    Output: Debug + Clone + PartialEq,
 {
-    command: Option<Command>,
-    internal_state: State<Data>,
-    command_acknowledged: bool
+    input: Option<Input>,
+    output: Option<Output>,
 }
 
-impl<Command, Data> Interface<Command, Data> for Interconnect<Command, Data>
+impl<Input, Output> Interconnect<Input, Output>
 where
-    Command: Debug + Clone + PartialEq,
-    Data: Debug + Clone + PartialEq,
+    Input: Debug + Clone + PartialEq,
+    Output: Debug + Clone + PartialEq,
 {
-    fn send_command(&mut self, command: Command) {
-        self.command = Some(command);
-        self.command_acknowledged = false;
-    }
-
-    fn command_acknowledged(&self) -> bool {
-        self.command_acknowledged
-    }
-
-    fn state(&self) -> State<Data> {
-        self.internal_state.clone()
+    pub fn new() -> Self {
+        Interconnect {
+            input: None,
+            output: None,
+        }
     }
 }
 
-impl<Command, Data> Implementation<Command, Data> for Interconnect<Command, Data>
+impl<Input, Output> Peripheral<Input, Output> for Interconnect<Input, Output>
 where
-    Command: Debug + Clone + PartialEq,
-    Data: Debug + Clone + PartialEq,
+    Input: Debug + Clone + PartialEq,
+    Output: Debug + Clone + PartialEq,
 {
-    fn read_command(&self) -> Option<Command> {
-        self.command.clone()
+    fn transmit(&mut self, input: Input) {
+        self.input = Some(input);
     }
 
-    fn acknowledge_command(&mut self) {
-        self.command_acknowledged = true;
+    fn receive(&mut self) -> Option<Output> {
+        std::mem::replace(&mut self.output, None)
+    }
+}
+
+impl<Input, Output> Controller<Input, Output> for Interconnect<Input, Output>
+where
+    Input: Debug + Clone + PartialEq,
+    Output: Debug + Clone + PartialEq,
+{
+    fn receive(&mut self) -> Option<Input> {
+        std::mem::replace(&mut self.input, None)
     }
 
-    fn set_state(&mut self, state: State<Data>) {
-        self.internal_state = state;
-        self.command = None;
+    fn transmit(&mut self, output: Output) {
+        self.output = Some(output);
     }
 }

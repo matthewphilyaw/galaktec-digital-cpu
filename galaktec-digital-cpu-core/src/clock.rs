@@ -1,6 +1,6 @@
-use crate::discrete::Discrete;
+use crate::discrete::DiscreteUnit;
 
-type DiscreteDevice = Box<dyn Discrete>;
+type DiscreteDevice = Box<dyn DiscreteUnit>;
 
 #[derive(Debug)]
 pub struct GenericClock {

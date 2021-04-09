@@ -1,4 +1,4 @@
-use galaktec_digital_cpu_core::{Discrete, GenericIODevice, IODevice, Input, Output, WithIO};
+use galaktec_digital_cpu_core::{DiscreteUnit, GenericIODevice, IODevice, Input, Output, WithIO};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -32,7 +32,7 @@ impl Memory {
     }
 }
 
-impl Discrete for Memory {
+impl DiscreteUnit for Memory {
     fn send(&mut self) {}
     fn update(&mut self) {
         if self.operation.is_none() {
@@ -116,7 +116,7 @@ impl Peripheral for MemoryPeripheral {
 mod tests {
     use crate::memory::Memory;
     use crate::WithPeripheral;
-    use galaktec_digital_cpu_core::{Discrete, Output};
+    use galaktec_digital_cpu_core::{DiscreteUnit, Output};
 
     #[test]
     fn write_within_n_cycles() {
