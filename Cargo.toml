@@ -2,5 +2,4 @@
 members = [
     "galaktec-digital-cpu-core",
     "galaktec-digital-cpu-riscv",
-    "galaktec-digital-cpu-peripheral"
 ]

@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::fmt::Debug;
 
 pub trait Peripheral<Input, Output>: Debug
