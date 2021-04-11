@@ -65,8 +65,8 @@ impl CounterResetPeripheral {
     }
 }
 
-impl Broadcast for CounterResetPeripheral {
-    fn broadcast(&mut self) {
+impl Update for CounterResetPeripheral {
+    fn update(&mut self) {
         self.observed_count = self.counter_peripheral.receive();
         if let Some(current_count) = self.observed_count {
             if current_count == self.trigger_at {
@@ -77,8 +77,8 @@ impl Broadcast for CounterResetPeripheral {
 }
 
 #[test]
-fn counter_test() {
-    let (c, p) = interconnect();
+fn counter_before_reset_order_test() {
+    let (c, p, i) = interconnect();
     let counter = Rc::new(RefCell::new(CounterPeripheral::new(
         c
     )));
@@ -89,14 +89,47 @@ fn counter_test() {
         p,
     )));
 
-    let mut clock = Clock::new(vec![counter_reset.clone()], vec![counter]);
+    let mut clock = Clock::new(vec![], vec![counter, counter_reset.clone()]);
 
-    for n in 0..12 {
+    for n in 0..13 {
         clock.step();
+        i.borrow_mut().tick();
 
         match counter_reset.borrow().observed_count {
             Some(count) => {
-                if n == 11 {
+                if n == 12 {
+                    assert_eq!(count, 20);
+                } else {
+                    assert_eq!(count, n);
+                }
+            },
+            _ => continue
+        }
+    }
+}
+
+#[test]
+fn reset_before_counter_order_test() {
+    let (c, p, i) = interconnect();
+    let counter = Rc::new(RefCell::new(CounterPeripheral::new(
+        c
+    )));
+
+    let counter_reset = Rc::new(RefCell::new(CounterResetPeripheral::new(
+        10,
+        20,
+        p,
+    )));
+
+    let mut clock = Clock::new(vec![], vec![counter_reset.clone(), counter]);
+
+    for n in 0..13 {
+        clock.step();
+        i.borrow_mut().tick();
+
+        match counter_reset.borrow().observed_count {
+            Some(count) => {
+                if n == 12 {
                     assert_eq!(count, 20);
                 } else {
                     assert_eq!(count, n);

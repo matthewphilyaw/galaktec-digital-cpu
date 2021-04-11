@@ -3,13 +3,26 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 #[derive(Debug)]
-struct Interconnect<Input, Output>
+pub struct Interconnect<Input, Output>
 where
     Input: Debug + Clone + PartialEq,
     Output: Debug + Clone + PartialEq,
 {
+    next_input: Option<Input>,
     input: Option<Input>,
+    next_output: Option<Output>,
     output: Option<Output>,
+}
+
+impl<Input, Output> Interconnect<Input, Output>
+where
+    Input: Debug + Clone + PartialEq,
+    Output: Debug + Clone + PartialEq,
+{
+    pub fn tick(&mut self) {
+        self.input = std::mem::replace(&mut self.next_input, None);
+        self.output = std::mem::replace(&mut self.next_output, None);
+    }
 }
 
 #[derive(Debug)]
@@ -27,7 +40,7 @@ where
     Output: Debug + Clone + PartialEq,
 {
     pub fn transmit(&mut self, input: Input) {
-        self.interconnect.as_ref().borrow_mut().input = Some(input);
+        self.interconnect.as_ref().borrow_mut().next_input = Some(input);
     }
 
     pub fn receive(&mut self) -> Option<Output> {
@@ -56,22 +69,25 @@ where
     }
 
     pub fn transmit(&mut self, output: Output) {
-        self.interconnect.borrow_mut().output = Some(output);
+        self.interconnect.borrow_mut().next_output = Some(output);
     }
 }
 
-pub fn interconnect<Input, Output>() -> (Controller<Input, Output>, Peripheral<Input, Output>)
+pub fn interconnect<Input, Output>() -> (Controller<Input, Output>, Peripheral<Input, Output>, Rc<RefCell<Interconnect<Input, Output>>>)
 where
     Input: Debug + Clone + PartialEq,
     Output: Debug + Clone + PartialEq,
 {
     let interconnect = Rc::new(RefCell::new(Interconnect {
+        next_input: None,
         input: None,
+        next_output: None,
         output: None,
     }));
 
     (
         Controller { interconnect: interconnect.clone() },
-        Peripheral { interconnect },
+        Peripheral { interconnect: interconnect.clone() },
+        interconnect
     )
 }
