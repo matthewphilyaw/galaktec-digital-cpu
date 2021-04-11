@@ -1,13 +1,13 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use galaktec_digital_cpu_core::{Broadcast, Clock, Update, interconnect, Controller, Peripheral};
+use galaktec_digital_cpu_core::{interconnect, Clock, Controller, Peripheral, Update};
 
 /* -------------- Counter Peripheral ---------------------- */
 
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 enum CounterOperation {
-    Set(usize)
+    Set(usize),
 }
 
 #[derive(Debug)]
@@ -30,7 +30,7 @@ impl Update for CounterPeripheral {
         let input = self.controller.receive();
         self.count = if let Some(op) = input {
             match op {
-                CounterOperation::Set(new_value) => new_value
+                CounterOperation::Set(new_value) => new_value,
             }
         } else {
             self.count + 1
@@ -60,7 +60,7 @@ impl CounterResetPeripheral {
             trigger_at,
             set_to,
             counter_peripheral,
-            observed_count: None
+            observed_count: None,
         }
     }
 }
@@ -70,7 +70,8 @@ impl Update for CounterResetPeripheral {
         self.observed_count = self.counter_peripheral.receive();
         if let Some(current_count) = self.observed_count {
             if current_count == self.trigger_at {
-                self.counter_peripheral.transmit(CounterOperation::Set(self.set_to));
+                self.counter_peripheral
+                    .transmit(CounterOperation::Set(self.set_to));
             }
         }
     }
@@ -79,16 +80,8 @@ impl Update for CounterResetPeripheral {
 #[test]
 fn counter_before_reset_order_test() {
     let (c, p, i) = interconnect();
-    let counter = Rc::new(RefCell::new(CounterPeripheral::new(
-        c
-    )));
-
-    let counter_reset = Rc::new(RefCell::new(CounterResetPeripheral::new(
-        10,
-        20,
-        p,
-    )));
-
+    let counter = Rc::new(RefCell::new(CounterPeripheral::new(c)));
+    let counter_reset = Rc::new(RefCell::new(CounterResetPeripheral::new(10, 20, p)));
     let mut clock = Clock::new(vec![], vec![counter, counter_reset.clone()]);
 
     for n in 0..13 {
@@ -102,8 +95,8 @@ fn counter_before_reset_order_test() {
                 } else {
                     assert_eq!(count, n);
                 }
-            },
-            _ => continue
+            }
+            _ => continue,
         }
     }
 }
@@ -111,16 +104,8 @@ fn counter_before_reset_order_test() {
 #[test]
 fn reset_before_counter_order_test() {
     let (c, p, i) = interconnect();
-    let counter = Rc::new(RefCell::new(CounterPeripheral::new(
-        c
-    )));
-
-    let counter_reset = Rc::new(RefCell::new(CounterResetPeripheral::new(
-        10,
-        20,
-        p,
-    )));
-
+    let counter = Rc::new(RefCell::new(CounterPeripheral::new(c)));
+    let counter_reset = Rc::new(RefCell::new(CounterResetPeripheral::new(10, 20, p)));
     let mut clock = Clock::new(vec![], vec![counter_reset.clone(), counter]);
 
     for n in 0..13 {
@@ -134,8 +119,8 @@ fn reset_before_counter_order_test() {
                 } else {
                     assert_eq!(count, n);
                 }
-            },
-            _ => continue
+            }
+            _ => continue,
         }
     }
 }

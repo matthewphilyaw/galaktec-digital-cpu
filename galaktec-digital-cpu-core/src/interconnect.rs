@@ -1,6 +1,6 @@
+use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
-use std::cell::RefCell;
 
 #[derive(Debug)]
 pub struct Interconnect<Input, Output>
@@ -31,10 +31,10 @@ where
     Input: Debug + Clone + PartialEq,
     Output: Debug + Clone + PartialEq,
 {
-    interconnect: Rc<RefCell<Interconnect<Input, Output>>>
+    interconnect: Rc<RefCell<Interconnect<Input, Output>>>,
 }
 
-impl <Input, Output> Peripheral<Input, Output>
+impl<Input, Output> Peripheral<Input, Output>
 where
     Input: Debug + Clone + PartialEq,
     Output: Debug + Clone + PartialEq,
@@ -48,16 +48,14 @@ where
     }
 }
 
-
 #[derive(Debug)]
 pub struct Controller<Input, Output>
 where
     Input: Debug + Clone + PartialEq,
     Output: Debug + Clone + PartialEq,
 {
-    interconnect: Rc<RefCell<Interconnect<Input, Output>>>
+    interconnect: Rc<RefCell<Interconnect<Input, Output>>>,
 }
-
 
 impl<Input, Output> Controller<Input, Output>
 where
@@ -73,7 +71,11 @@ where
     }
 }
 
-pub fn interconnect<Input, Output>() -> (Controller<Input, Output>, Peripheral<Input, Output>, Rc<RefCell<Interconnect<Input, Output>>>)
+pub fn interconnect<Input, Output>() -> (
+    Controller<Input, Output>,
+    Peripheral<Input, Output>,
+    Rc<RefCell<Interconnect<Input, Output>>>,
+)
 where
     Input: Debug + Clone + PartialEq,
     Output: Debug + Clone + PartialEq,
@@ -86,8 +88,12 @@ where
     }));
 
     (
-        Controller { interconnect: interconnect.clone() },
-        Peripheral { interconnect: interconnect.clone() },
-        interconnect
+        Controller {
+            interconnect: interconnect.clone(),
+        },
+        Peripheral {
+            interconnect: interconnect.clone(),
+        },
+        interconnect,
     )
 }
