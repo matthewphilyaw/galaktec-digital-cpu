@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::ops::DerefMut;
 use std::rc::Rc;
 
 use galaktec_digital_cpu_core::{Broadcast, Clock, Update, interconnect, Controller, Peripheral};
@@ -8,8 +7,7 @@ use galaktec_digital_cpu_core::{Broadcast, Clock, Update, interconnect, Controll
 
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 enum CounterOperation {
-    Set(usize),
-    Reset,
+    Set(usize)
 }
 
 #[derive(Debug)]
@@ -32,8 +30,7 @@ impl Update for CounterPeripheral {
         let input = self.controller.receive();
         self.count = if let Some(op) = input {
             match op {
-                CounterOperation::Set(new_value) => new_value,
-                CounterOperation::Reset => 0,
+                CounterOperation::Set(new_value) => new_value
             }
         } else {
             self.count + 1
