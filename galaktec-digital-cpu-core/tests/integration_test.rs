@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use galaktec_digital_cpu_core::{interconnect, Clock, Controller, Peripheral, Update};
+use galaktec_digital_cpu_core::{Clock, FullDuplexPort, create_interconnect, Discrete};
 
 /* -------------- Counter Peripheral ---------------------- */
 
@@ -13,21 +13,24 @@ enum CounterOperation {
 #[derive(Debug)]
 struct CounterPeripheral {
     count: usize,
-    controller: Controller<CounterOperation, usize>,
+    port: FullDuplexPort<CounterOperation, usize>,
 }
 
 impl CounterPeripheral {
-    fn new(controller: Controller<CounterOperation, usize>) -> Self {
+    fn new(port: FullDuplexPort<CounterOperation, usize>) -> Self {
         CounterPeripheral {
             count: 0,
-            controller,
+            port,
         }
     }
 }
 
-impl Update for CounterPeripheral {
+impl Discrete for CounterPeripheral {
+    fn transmit(&mut self) {
+        self.port.transmit(self.count)
+    }
     fn update(&mut self) {
-        let input = self.controller.receive();
+        let input = self.port.receive();
         self.count = if let Some(op) = input {
             match op {
                 CounterOperation::Set(new_value) => new_value,
@@ -35,8 +38,6 @@ impl Update for CounterPeripheral {
         } else {
             self.count + 1
         };
-
-        self.controller.transmit(self.count)
     }
 }
 
@@ -46,7 +47,7 @@ impl Update for CounterPeripheral {
 struct CounterResetPeripheral {
     trigger_at: usize,
     set_to: usize,
-    counter_peripheral: Peripheral<CounterOperation, usize>,
+    counter_port: FullDuplexPort<usize, CounterOperation>,
     observed_count: Option<usize>,
 }
 
@@ -54,73 +55,66 @@ impl CounterResetPeripheral {
     fn new(
         trigger_at: usize,
         set_to: usize,
-        counter_peripheral: Peripheral<CounterOperation, usize>,
+        counter_port: FullDuplexPort<usize, CounterOperation>,
     ) -> Self {
         CounterResetPeripheral {
             trigger_at,
             set_to,
-            counter_peripheral,
+            counter_port,
             observed_count: None,
         }
     }
 }
 
-impl Update for CounterResetPeripheral {
-    fn update(&mut self) {
-        self.observed_count = self.counter_peripheral.receive();
+impl Discrete for CounterResetPeripheral {
+    fn transmit(&mut self) {
         if let Some(current_count) = self.observed_count {
             if current_count == self.trigger_at {
-                self.counter_peripheral
+                self.counter_port
                     .transmit(CounterOperation::Set(self.set_to));
             }
         }
+    }
+
+    fn update(&mut self) {
+        self.observed_count = self.counter_port.receive();
     }
 }
 
 #[test]
 fn counter_before_reset_order_test() {
-    let (c, p, i) = interconnect();
+    let (c, p) = create_interconnect();
     let counter = Rc::new(RefCell::new(CounterPeripheral::new(c)));
     let counter_reset = Rc::new(RefCell::new(CounterResetPeripheral::new(10, 20, p)));
-    let mut clock = Clock::new(vec![], vec![counter, counter_reset.clone()]);
+    let mut clock = Clock::new(vec![counter.clone(), counter_reset.clone()]);
 
-    for n in 0..13 {
+    for n in 0..12 {
         clock.step();
-        i.borrow_mut().tick();
 
-        match counter_reset.borrow().observed_count {
-            Some(count) => {
-                if n == 12 {
-                    assert_eq!(count, 20);
-                } else {
-                    assert_eq!(count, n);
-                }
-            }
-            _ => continue,
+        let count = counter.borrow().count;
+        if n == 11 {
+            assert_eq!(count, 20);
+        } else {
+            assert_eq!(count, n + 1);
         }
     }
 }
 
 #[test]
 fn reset_before_counter_order_test() {
-    let (c, p, i) = interconnect();
+    let (c, p) = create_interconnect();
     let counter = Rc::new(RefCell::new(CounterPeripheral::new(c)));
     let counter_reset = Rc::new(RefCell::new(CounterResetPeripheral::new(10, 20, p)));
-    let mut clock = Clock::new(vec![], vec![counter_reset.clone(), counter]);
+    let mut clock = Clock::new(vec![counter_reset.clone(), counter.clone()]);
 
-    for n in 0..13 {
+    for n in 0..12 {
         clock.step();
-        i.borrow_mut().tick();
 
-        match counter_reset.borrow().observed_count {
-            Some(count) => {
-                if n == 12 {
-                    assert_eq!(count, 20);
-                } else {
-                    assert_eq!(count, n);
-                }
-            }
-            _ => continue,
+        let count = counter.borrow().count;
+        if n == 11 {
+            assert_eq!(count, 20);
+        } else {
+            assert_eq!(count, n + 1);
         }
     }
 }

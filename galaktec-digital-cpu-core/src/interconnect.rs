@@ -3,97 +3,76 @@ use std::fmt::Debug;
 use std::rc::Rc;
 
 #[derive(Debug)]
-pub struct Interconnect<Input, Output>
+struct Signal<Data>
 where
-    Input: Debug + Clone + PartialEq,
-    Output: Debug + Clone + PartialEq,
+    Data: Debug + Clone + PartialEq,
 {
-    next_input: Option<Input>,
-    input: Option<Input>,
-    next_output: Option<Output>,
-    output: Option<Output>,
+    data: Option<Data>
 }
 
-impl<Input, Output> Interconnect<Input, Output>
+impl<Data> Signal<Data>
 where
-    Input: Debug + Clone + PartialEq,
-    Output: Debug + Clone + PartialEq,
+    Data: Debug + Clone + PartialEq,
 {
-    pub fn tick(&mut self) {
-        self.input = std::mem::replace(&mut self.next_input, None);
-        self.output = std::mem::replace(&mut self.next_output, None);
+    fn new() -> Self {
+        Signal {
+            data: None
+        }
+    }
+
+    fn set_data(&mut self, data: Data) {
+        self.data = Some(data);
+    }
+
+    fn consume_data(&mut self) -> Option<Data> {
+        std::mem::replace(&mut self.data, None)
     }
 }
+
 
 #[derive(Debug)]
-pub struct Peripheral<Input, Output>
+pub struct FullDuplexPort<Input, Output>
 where
     Input: Debug + Clone + PartialEq,
     Output: Debug + Clone + PartialEq,
 {
-    interconnect: Rc<RefCell<Interconnect<Input, Output>>>,
+    input_signal: Rc<RefCell<Signal<Input>>>,
+    output_signal: Rc<RefCell<Signal<Output>>>,
 }
 
-impl<Input, Output> Peripheral<Input, Output>
+impl<Input, Output> FullDuplexPort<Input, Output>
 where
     Input: Debug + Clone + PartialEq,
     Output: Debug + Clone + PartialEq,
 {
-    pub fn transmit(&mut self, input: Input) {
-        self.interconnect.as_ref().borrow_mut().next_input = Some(input);
-    }
-
-    pub fn receive(&mut self) -> Option<Output> {
-        std::mem::replace(&mut self.interconnect.borrow_mut().output, None)
-    }
-}
-
-#[derive(Debug)]
-pub struct Controller<Input, Output>
-where
-    Input: Debug + Clone + PartialEq,
-    Output: Debug + Clone + PartialEq,
-{
-    interconnect: Rc<RefCell<Interconnect<Input, Output>>>,
-}
-
-impl<Input, Output> Controller<Input, Output>
-where
-    Input: Debug + Clone + PartialEq,
-    Output: Debug + Clone + PartialEq,
-{
-    pub fn receive(&mut self) -> Option<Input> {
-        std::mem::replace(&mut self.interconnect.borrow_mut().input, None)
-    }
-
     pub fn transmit(&mut self, output: Output) {
-        self.interconnect.borrow_mut().next_output = Some(output);
+        &self.output_signal.borrow_mut().set_data(output);
+    }
+
+    pub fn receive(&mut self) -> Option<Input> {
+        self.input_signal.borrow_mut().consume_data()
     }
 }
 
-pub fn interconnect<Input, Output>() -> (
-    Controller<Input, Output>,
-    Peripheral<Input, Output>,
-    Rc<RefCell<Interconnect<Input, Output>>>,
-)
+
+
+pub fn create_interconnect<Input, Output>() -> (FullDuplexPort<Input, Output>, FullDuplexPort<Output, Input>)
 where
     Input: Debug + Clone + PartialEq,
     Output: Debug + Clone + PartialEq,
 {
-    let interconnect = Rc::new(RefCell::new(Interconnect {
-        next_input: None,
-        input: None,
-        next_output: None,
-        output: None,
-    }));
+    let signal_a: Rc<RefCell<Signal<Input>>> = Rc::new(RefCell::new(Signal::new()));
+    let signal_b: Rc<RefCell<Signal<Output>>> = Rc::new(RefCell::new(Signal::new()));
+
 
     (
-        Controller {
-            interconnect: interconnect.clone(),
+        FullDuplexPort {
+            input_signal: signal_a.clone(),
+            output_signal: signal_b.clone()
         },
-        Peripheral {
-            interconnect: interconnect.clone(),
+        FullDuplexPort {
+            input_signal: signal_b,
+            output_signal: signal_a
         },
-        interconnect,
     )
 }
