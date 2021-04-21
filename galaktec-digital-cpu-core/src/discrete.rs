@@ -1,33 +1,17 @@
-use std::cell::RefCell;
 use std::fmt::Debug;
-use std::rc::Rc;
 
-pub trait Discrete: Debug {
+pub trait Transmit: Debug {
     fn transmit(&mut self) {}
+}
+
+pub trait Update: Debug {
     fn update(&mut self) {}
 }
 
-type DiscreteItem = Rc<RefCell<dyn Discrete>>;
-
-#[derive(Debug)]
-pub struct Clock {
-    discrete_items: Vec<DiscreteItem>,
+pub fn transmit(imp: &mut impl Transmit) {
+    imp.transmit();
 }
 
-impl Clock {
-    pub fn new(discrete_items: Vec<DiscreteItem>) -> Self {
-        Clock {
-            discrete_items,
-        }
-    }
-
-    pub fn step(&mut self) {
-        for di in self.discrete_items.iter_mut() {
-            di.borrow_mut().transmit();
-        }
-
-        for di in self.discrete_items.iter_mut() {
-            di.borrow_mut().update();
-        }
-    }
+pub fn update(imp: &mut impl Update) {
+    imp.update();
 }
