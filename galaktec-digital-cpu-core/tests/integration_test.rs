@@ -1,4 +1,7 @@
-use galaktec_digital_cpu_core::{create_zero_latency_interconnect, transmit, update, ControllerConnector, PeripheralConnector, Transmit, Update, create_latent_interconnect};
+use galaktec_digital_cpu_core::{
+    create_latent_interconnect, create_zero_latency_interconnect, transmit, update,
+    ControllerConnector, PeripheralConnector, Transmit, Update,
+};
 use std::ops::DerefMut;
 
 /* -------------- Counter Peripheral ---------------------- */
@@ -175,7 +178,6 @@ fn reset_before_counter_order_test() {
         counter_resets.iter_mut().for_each(update);
         counters.iter_mut().for_each(update);
 
-
         let count = counters.first().unwrap().count;
         if n == 11 {
             assert_eq!(count, 20);
@@ -205,8 +207,12 @@ fn works_over_vec_counters() {
         counters.iter_mut().for_each(transmit);
         counter_resets.iter_mut().for_each(transmit);
 
-        signal_inputs.iter_mut().for_each(|s| update(s.as_ref().borrow_mut().deref_mut()));
-        signal_outputs.iter_mut().for_each(|s| update(s.as_ref().borrow_mut().deref_mut()));
+        signal_inputs
+            .iter_mut()
+            .for_each(|s| update(s.as_ref().borrow_mut().deref_mut()));
+        signal_outputs
+            .iter_mut()
+            .for_each(|s| update(s.as_ref().borrow_mut().deref_mut()));
 
         counters.iter_mut().for_each(update);
         counter_resets.iter_mut().for_each(update);
