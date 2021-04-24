@@ -1,6 +1,6 @@
 use galaktec_digital_cpu_core::{
-    create_latent_interconnect, create_zero_latency_interconnect, transmit, update,
-    ControllerConnector, PeripheralConnector, Transmit, Update,
+    transmit, update, ControllerConnector, Interconnect, InterconnectOption, PeripheralConnector,
+    Transmit, Update,
 };
 use std::ops::DerefMut;
 
@@ -89,16 +89,23 @@ impl Update for CounterResetPeripheral {
 
 #[test]
 fn input_latency_test_one_cycle_delay() {
-    let (c, p, signals) = create_latent_interconnect(1, 0);
-    let mut counters = vec![CounterPeripheral::new(c)];
-    let mut counter_resets = vec![CounterResetPeripheral::new(10, 20, p)];
+    let interconnect = Interconnect::new(InterconnectOption::Latent {
+        input: 1,
+        output: 0,
+    });
+    let mut counters = vec![CounterPeripheral::new(interconnect.peripheral_connector)];
+    let mut counter_resets = vec![CounterResetPeripheral::new(
+        10,
+        20,
+        interconnect.controller_connector,
+    )];
 
     for n in 0..13 {
         counters.iter_mut().for_each(transmit);
         counter_resets.iter_mut().for_each(transmit);
 
-        update(signals.0.as_ref().borrow_mut().deref_mut());
-        update(signals.1.as_ref().borrow_mut().deref_mut());
+        update(interconnect.input_signal.as_ref().borrow_mut().deref_mut());
+        update(interconnect.output_signal.as_ref().borrow_mut().deref_mut());
 
         counters.iter_mut().for_each(update);
         counter_resets.iter_mut().for_each(update);
@@ -114,16 +121,23 @@ fn input_latency_test_one_cycle_delay() {
 
 #[test]
 fn output_latency_test_one_cycle_delay() {
-    let (c, p, signals) = create_latent_interconnect(0, 1);
-    let mut counters = vec![CounterPeripheral::new(c)];
-    let mut counter_resets = vec![CounterResetPeripheral::new(10, 20, p)];
+    let interconnect = Interconnect::new(InterconnectOption::Latent {
+        input: 0,
+        output: 1,
+    });
+    let mut counters = vec![CounterPeripheral::new(interconnect.peripheral_connector)];
+    let mut counter_resets = vec![CounterResetPeripheral::new(
+        10,
+        20,
+        interconnect.controller_connector,
+    )];
 
     for n in 0..13 {
         counters.iter_mut().for_each(transmit);
         counter_resets.iter_mut().for_each(transmit);
 
-        update(signals.0.as_ref().borrow_mut().deref_mut());
-        update(signals.1.as_ref().borrow_mut().deref_mut());
+        update(interconnect.input_signal.as_ref().borrow_mut().deref_mut());
+        update(interconnect.output_signal.as_ref().borrow_mut().deref_mut());
 
         counters.iter_mut().for_each(update);
         counter_resets.iter_mut().for_each(update);
@@ -139,16 +153,20 @@ fn output_latency_test_one_cycle_delay() {
 
 #[test]
 fn counter_before_reset_order_test() {
-    let (c, p, signals) = create_zero_latency_interconnect();
-    let mut counters = vec![CounterPeripheral::new(c)];
-    let mut counter_resets = vec![CounterResetPeripheral::new(10, 20, p)];
+    let interconnect = Interconnect::new(InterconnectOption::ZeroLatency);
+    let mut counters = vec![CounterPeripheral::new(interconnect.peripheral_connector)];
+    let mut counter_resets = vec![CounterResetPeripheral::new(
+        10,
+        20,
+        interconnect.controller_connector,
+    )];
 
     for n in 0..12 {
         counters.iter_mut().for_each(transmit);
         counter_resets.iter_mut().for_each(transmit);
 
-        update(signals.0.as_ref().borrow_mut().deref_mut());
-        update(signals.1.as_ref().borrow_mut().deref_mut());
+        update(interconnect.input_signal.as_ref().borrow_mut().deref_mut());
+        update(interconnect.output_signal.as_ref().borrow_mut().deref_mut());
 
         counters.iter_mut().for_each(update);
         counter_resets.iter_mut().for_each(update);
@@ -164,16 +182,20 @@ fn counter_before_reset_order_test() {
 
 #[test]
 fn reset_before_counter_order_test() {
-    let (c, p, signals) = create_zero_latency_interconnect();
-    let mut counters = vec![CounterPeripheral::new(c)];
-    let mut counter_resets = vec![CounterResetPeripheral::new(10, 20, p)];
+    let interconnect = Interconnect::new(InterconnectOption::ZeroLatency);
+    let mut counters = vec![CounterPeripheral::new(interconnect.peripheral_connector)];
+    let mut counter_resets = vec![CounterResetPeripheral::new(
+        10,
+        20,
+        interconnect.controller_connector,
+    )];
 
     for n in 0..12 {
         counter_resets.iter_mut().for_each(transmit);
         counters.iter_mut().for_each(transmit);
 
-        update(signals.0.as_ref().borrow_mut().deref_mut());
-        update(signals.1.as_ref().borrow_mut().deref_mut());
+        update(interconnect.input_signal.as_ref().borrow_mut().deref_mut());
+        update(interconnect.output_signal.as_ref().borrow_mut().deref_mut());
 
         counter_resets.iter_mut().for_each(update);
         counters.iter_mut().for_each(update);
@@ -195,12 +217,17 @@ fn works_over_vec_counters() {
     let mut signal_outputs = vec![];
 
     for _ in 0..5 {
-        let (c, p, signals) = create_zero_latency_interconnect();
-        counters.push(CounterPeripheral::new(c));
-        counter_resets.push(CounterResetPeripheral::new(10, 20, p));
+        let interconnect = Interconnect::new(InterconnectOption::ZeroLatency);
 
-        signal_inputs.push(signals.0);
-        signal_outputs.push(signals.1);
+        counters.push(CounterPeripheral::new(interconnect.controller_connector));
+        counter_resets.push(CounterResetPeripheral::new(
+            10,
+            20,
+            interconnect.peripheral_connector,
+        ));
+
+        signal_inputs.push(interconnect.input_signal);
+        signal_outputs.push(interconnect.output_signal);
     }
 
     for n in 0..12 {
