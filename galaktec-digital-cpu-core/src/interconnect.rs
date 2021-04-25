@@ -4,20 +4,15 @@ use std::rc::Rc;
 
 use crate::signal::{Signal, SignalData, SignalError};
 
-pub type PeripheralConnector<PeripheralInput, PeripheralOutput> =
+pub type PeripheralPort<PeripheralInput, PeripheralOutput> =
     FullDuplexPort<PeripheralOutput, PeripheralInput>;
-pub type ControllerConnector<PeripheralInput, PeripheralOutput> =
+pub type ControllerPort<PeripheralInput, PeripheralOutput> =
     FullDuplexPort<PeripheralInput, PeripheralOutput>;
-
-pub enum InterconnectOption {
-    ZeroLatency,
-    Latent { input: usize, output: usize },
-}
 
 #[derive(Debug)]
 pub struct Interconnect<PeripheralInput: SignalData, PeripheralOutput: SignalData> {
-    pub controller_connector: ControllerConnector<PeripheralInput, PeripheralOutput>,
-    pub peripheral_connector: PeripheralConnector<PeripheralInput, PeripheralOutput>,
+    pub controller_connector: ControllerPort<PeripheralInput, PeripheralOutput>,
+    pub peripheral_connector: PeripheralPort<PeripheralInput, PeripheralOutput>,
     pub input_signal: Rc<RefCell<Signal<PeripheralInput>>>,
     pub output_signal: Rc<RefCell<Signal<PeripheralOutput>>>,
 }
@@ -25,22 +20,19 @@ pub struct Interconnect<PeripheralInput: SignalData, PeripheralOutput: SignalDat
 impl<PeripheralInput: SignalData, PeripheralOutput: SignalData>
     Interconnect<PeripheralInput, PeripheralOutput>
 {
-    pub fn new(option: InterconnectOption) -> Self {
-        let (input_latency, output_latency) = match option {
-            InterconnectOption::ZeroLatency => (0, 0),
-            InterconnectOption::Latent { input, output } => (input, output),
-        };
+    pub fn new() -> Self {
+        Self::new_with_latency(0, 0)
+    }
 
+    pub fn new_with_latency(input: usize, output: usize) -> Self {
         let input_signal: Rc<RefCell<Signal<PeripheralInput>>> =
-            Rc::new(RefCell::new(Signal::new(input_latency)));
+            Rc::new(RefCell::new(Signal::new(input)));
         let output_signal: Rc<RefCell<Signal<PeripheralOutput>>> =
-            Rc::new(RefCell::new(Signal::new(output_latency)));
+            Rc::new(RefCell::new(Signal::new(output)));
 
-        let peripheral_connector =
-            PeripheralConnector::new(output_signal.clone(), input_signal.clone());
+        let peripheral_connector = PeripheralPort::new(output_signal.clone(), input_signal.clone());
 
-        let controller_connector =
-            ControllerConnector::new(input_signal.clone(), output_signal.clone());
+        let controller_connector = ControllerPort::new(input_signal.clone(), output_signal.clone());
 
         Interconnect {
             controller_connector,
