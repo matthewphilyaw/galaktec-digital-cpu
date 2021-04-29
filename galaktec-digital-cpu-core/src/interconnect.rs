@@ -10,8 +10,13 @@ pub type PeripheralPort<PeripheralInput, PeripheralOutput> = Port<PeripheralOutp
 pub type ControllerPort<PeripheralInput, PeripheralOutput> = Port<PeripheralInput, PeripheralOutput>;
 
 #[derive(Debug)]
-pub enum PortError {
+pub enum PortTransmitError {
     Busy,
+}
+
+#[derive(Debug)]
+pub enum PortReceiveError {
+    NoData,
 }
 
 type SignalPair<PeripheralInput, PeripheralOutput> = (
@@ -42,18 +47,21 @@ impl<Transmit: SignalData, Receive: SignalData> Port<Transmit, Receive> {
         }
     }
 
-    pub fn transmit(&mut self, output: Transmit) -> Result<(), PortError> {
+    pub fn transmit(&mut self, output: Transmit) -> Result<(), PortTransmitError> {
         if let Err(err) = self.transmit_signal.borrow_mut().set_data(output) {
             return match err {
-                SignalError::Busy => Err(PortError::Busy),
+                SignalError::Busy => Err(PortTransmitError::Busy),
             };
         }
 
         Ok(())
     }
 
-    pub fn receive(&mut self) -> Option<Receive> {
-        self.receive_signal.borrow().data()
+    pub fn receive(&mut self) -> Result<Receive, PortReceiveError> {
+        match self.receive_signal.borrow_mut().data() {
+            Some(data) => Ok(data),
+            None => Err(PortReceiveError::NoData),
+        }
     }
 }
 
@@ -104,10 +112,12 @@ impl<PeripheralInput: SignalData, PeripheralOutput: SignalData> Update
         // always update input signal
         match self.state {
             HalfDuplexState::Write => {
-                if self.input_signal.borrow().set() {
-                    self.input_signal.borrow_mut().propagate();
-                    self.state = HalfDuplexState::Read;
+                if !self.input_signal.borrow().set() {
+                    return;
                 }
+
+                self.input_signal.borrow_mut().propagate();
+                self.state = HalfDuplexState::Read;
             }
             HalfDuplexState::Read => {
                 if !self.output_signal.borrow().set() {
