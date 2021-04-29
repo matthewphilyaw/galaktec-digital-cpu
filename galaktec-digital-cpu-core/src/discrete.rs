@@ -8,10 +8,10 @@ pub trait Update: Debug {
     fn update(&mut self) {}
 }
 
-pub fn transmit(imp: &mut impl Transmit) {
+pub fn transmit<T: Transmit>(imp: &mut T) {
     imp.transmit();
 }
 
-pub fn update(imp: &mut impl Update) {
+pub fn update<T: Update>(imp: &mut T) {
     imp.update();
 }
