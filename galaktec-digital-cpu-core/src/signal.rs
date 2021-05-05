@@ -1,8 +1,8 @@
-use std::fmt::Debug;
 use std::cell::Cell;
+use std::fmt::Debug;
 
 pub trait SignalData: Debug + Copy + Clone {}
-impl<T: Debug + Copy + Clone> SignalData for T where {}
+impl<T: Debug + Copy + Clone> SignalData for T {}
 
 #[derive(Debug)]
 pub(crate) enum SignalError {
@@ -20,7 +20,7 @@ pub(crate) enum SignalState {
 pub(crate) struct Signal<T: SignalData> {
     next_data: Cell<Option<T>>,
     data: Cell<Option<T>>,
-    state: Cell<SignalState>
+    state: Cell<SignalState>,
 }
 
 impl<T: SignalData> Signal<T> {
@@ -28,7 +28,7 @@ impl<T: SignalData> Signal<T> {
         Signal {
             next_data: Cell::new(None),
             data: Cell::new(None),
-            state: Cell::new(SignalState::Free)
+            state: Cell::new(SignalState::Free),
         }
     }
 
@@ -38,8 +38,8 @@ impl<T: SignalData> Signal<T> {
                 self.state.set(SignalState::Set);
                 self.next_data.set(Some(data));
                 Ok(())
-            },
-            _ => Err(SignalError::Busy)
+            }
+            _ => Err(SignalError::Busy),
         }
     }
 
@@ -62,7 +62,6 @@ impl<T: SignalData> Signal<T> {
         } else {
             panic!("Invalid state");
         }
-
     }
 
     pub(crate) fn reset(&self) {

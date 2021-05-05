@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 use std::rc::Rc;
 
+use crate::discrete::Update;
 use crate::latency::CycleDelay;
 use crate::signal::{Signal, SignalData, SignalError};
-use crate::discrete::Update;
 
 pub type PeripheralPort<PeripheralInput, PeripheralOutput> = Port<PeripheralOutput, PeripheralInput>;
 pub type ControllerPort<PeripheralInput, PeripheralOutput> = Port<PeripheralInput, PeripheralOutput>;
@@ -18,10 +18,7 @@ pub enum PortReceiveError {
     NoData,
 }
 
-type SignalPair<PeripheralInput, PeripheralOutput> = (
-    Rc<Signal<PeripheralInput>>,
-    Rc<Signal<PeripheralOutput>>,
-);
+type SignalPair<PeripheralInput, PeripheralOutput> = (Rc<Signal<PeripheralInput>>, Rc<Signal<PeripheralOutput>>);
 
 #[derive(Debug)]
 enum HalfDuplexState {
@@ -36,10 +33,7 @@ pub struct Port<Transmit: SignalData, Receive: SignalData> {
 }
 
 impl<Transmit: SignalData, Receive: SignalData> Port<Transmit, Receive> {
-    pub(crate) fn new(
-        transmit_signal: Rc<Signal<Transmit>>,
-        receive_signal: Rc<Signal<Receive>>,
-    ) -> Self {
+    pub(crate) fn new(transmit_signal: Rc<Signal<Transmit>>, receive_signal: Rc<Signal<Receive>>) -> Self {
         Port {
             transmit_signal,
             receive_signal,
@@ -203,10 +197,7 @@ impl<PeripheralInput: SignalData, PeripheralOutput: SignalData> Update
 
 fn create_signal_pair<PeripheralInput: SignalData, PeripheralOutput: SignalData>(
 ) -> SignalPair<PeripheralInput, PeripheralOutput> {
-    (
-        Rc::new(Signal::new()),
-        Rc::new(Signal::new()),
-    )
+    (Rc::new(Signal::new()), Rc::new(Signal::new()))
 }
 
 fn create_ports<PeripheralInput: SignalData, PeripheralOutput: SignalData>(
