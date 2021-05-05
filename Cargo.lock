@@ -4,3 +4,6 @@
 name = "galaktec-digital-cpu-core"
 version = "0.1.0"
 
+[[package]]
+name = "galaktec-digital-cpu-peripheral"
+version = "0.1.0"
