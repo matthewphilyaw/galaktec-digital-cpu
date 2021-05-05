@@ -1,69 +1,73 @@
 use std::fmt::Debug;
+use std::cell::Cell;
 
-pub trait SignalData: Debug + Copy {}
-
-impl<T: Debug + Copy> SignalData for T {}
+pub trait SignalData: Debug + Copy + Clone {}
+impl<T: Debug + Copy + Clone> SignalData for T where {}
 
 #[derive(Debug)]
 pub(crate) enum SignalError {
     Busy,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub(crate) enum SignalState {
-    Ready,
+    Free,
     Set,
     Propagated,
 }
 
 #[derive(Debug)]
 pub(crate) struct Signal<T: SignalData> {
-    data: Option<T>,
-    next_data: Option<T>,
-    state: SignalState,
+    next_data: Cell<Option<T>>,
+    data: Cell<Option<T>>,
+    state: Cell<SignalState>
 }
 
 impl<T: SignalData> Signal<T> {
     pub(crate) fn new() -> Self {
         Signal {
-            data: None,
-            next_data: None,
-            state: SignalState::Ready,
+            next_data: Cell::new(None),
+            data: Cell::new(None),
+            state: Cell::new(SignalState::Free)
         }
     }
 
-    pub(crate) fn set_data(&mut self, data: T) -> Result<(), SignalError> {
-        match self.state {
-            SignalState::Ready => {
-                self.next_data = Some(data);
-                self.state = SignalState::Set;
+    pub(crate) fn set_data(&self, data: T) -> Result<(), SignalError> {
+        match self.state.get() {
+            SignalState::Free => {
+                self.state.set(SignalState::Set);
+                self.next_data.set(Some(data));
                 Ok(())
-            }
-            _ => Err(SignalError::Busy),
+            },
+            _ => Err(SignalError::Busy)
         }
     }
 
-    pub(crate) fn data(&mut self) -> Option<T> {
+    pub(crate) fn data(&self) -> Option<T> {
         self.data.take()
     }
 
     pub(crate) fn set(&self) -> bool {
-        self.state == SignalState::Set
+        if let SignalState::Set = self.state.get() {
+            true
+        } else {
+            false
+        }
     }
 
-    pub(crate) fn propagate(&mut self) {
-        assert_eq!(
-            self.state,
-            SignalState::Set,
-            "Can't propagate a signal that hasn't been set."
-        );
+    pub(crate) fn propagate(&self) {
+        if let SignalState::Set = self.state.get() {
+            self.state.set(SignalState::Propagated);
+            self.data.set(self.next_data.take());
+        } else {
+            panic!("Invalid state");
+        }
 
-        self.data = self.next_data.take();
-        self.state = SignalState::Propagated;
     }
 
-    pub(crate) fn reset(&mut self) {
-        self.state = SignalState::Ready
+    pub(crate) fn reset(&self) {
+        self.state.set(SignalState::Free);
+        self.next_data.set(None);
     }
 }
 
@@ -73,7 +77,7 @@ mod tests {
 
     #[test]
     fn set_data_does_not_change_data_before_propagate_is_called() {
-        let mut signal = Signal::<i32>::new();
+        let signal = Signal::<i32>::new();
 
         signal.set_data(1).unwrap();
         assert_eq!(signal.data(), None);
@@ -81,7 +85,7 @@ mod tests {
 
     #[test]
     fn set_data_is_propagated_to_data_after_propagate_is_called() {
-        let mut signal = Signal::<i32>::new();
+        let signal = Signal::<i32>::new();
 
         signal.set_data(1).unwrap();
         assert_eq!(signal.data(), None);
@@ -92,7 +96,7 @@ mod tests {
 
     #[test]
     fn set_data_is_propagated_correctly_through_two_cycles() {
-        let mut signal = Signal::<i32>::new();
+        let signal = Signal::<i32>::new();
 
         signal.set_data(1).unwrap();
         assert_eq!(signal.data(), None);
@@ -111,7 +115,7 @@ mod tests {
 
     #[test]
     fn data_set_is_true_when_set_data_was_called_and_propagate_has_not() {
-        let mut signal = Signal::<i32>::new();
+        let signal = Signal::<i32>::new();
 
         signal.set_data(1).unwrap();
         assert_eq!(signal.data(), None);
@@ -120,7 +124,7 @@ mod tests {
 
     #[test]
     fn data_set_is_false_when_propagate_has_been_called() {
-        let mut signal = Signal::<i32>::new();
+        let signal = Signal::<i32>::new();
 
         signal.set_data(1).unwrap();
         assert_eq!(signal.data(), None);

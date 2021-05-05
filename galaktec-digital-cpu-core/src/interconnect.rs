@@ -1,10 +1,9 @@
-use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
 
 use crate::latency::CycleDelay;
-use crate::signal::{Signal, SignalData};
-use crate::{SignalError, Update};
+use crate::signal::{Signal, SignalData, SignalError};
+use crate::discrete::Update;
 
 pub type PeripheralPort<PeripheralInput, PeripheralOutput> = Port<PeripheralOutput, PeripheralInput>;
 pub type ControllerPort<PeripheralInput, PeripheralOutput> = Port<PeripheralInput, PeripheralOutput>;
@@ -20,8 +19,8 @@ pub enum PortReceiveError {
 }
 
 type SignalPair<PeripheralInput, PeripheralOutput> = (
-    Rc<RefCell<Signal<PeripheralInput>>>,
-    Rc<RefCell<Signal<PeripheralOutput>>>,
+    Rc<Signal<PeripheralInput>>,
+    Rc<Signal<PeripheralOutput>>,
 );
 
 #[derive(Debug)]
@@ -32,14 +31,14 @@ enum HalfDuplexState {
 
 #[derive(Debug)]
 pub struct Port<Transmit: SignalData, Receive: SignalData> {
-    transmit_signal: Rc<RefCell<Signal<Transmit>>>,
-    receive_signal: Rc<RefCell<Signal<Receive>>>,
+    transmit_signal: Rc<Signal<Transmit>>,
+    receive_signal: Rc<Signal<Receive>>,
 }
 
 impl<Transmit: SignalData, Receive: SignalData> Port<Transmit, Receive> {
     pub(crate) fn new(
-        transmit_signal: Rc<RefCell<Signal<Transmit>>>,
-        receive_signal: Rc<RefCell<Signal<Receive>>>,
+        transmit_signal: Rc<Signal<Transmit>>,
+        receive_signal: Rc<Signal<Receive>>,
     ) -> Self {
         Port {
             transmit_signal,
@@ -48,7 +47,7 @@ impl<Transmit: SignalData, Receive: SignalData> Port<Transmit, Receive> {
     }
 
     pub fn transmit(&mut self, output: Transmit) -> Result<(), PortTransmitError> {
-        if let Err(err) = self.transmit_signal.borrow_mut().set_data(output) {
+        if let Err(err) = self.transmit_signal.set_data(output) {
             return match err {
                 SignalError::Busy => Err(PortTransmitError::Busy),
             };
@@ -58,7 +57,7 @@ impl<Transmit: SignalData, Receive: SignalData> Port<Transmit, Receive> {
     }
 
     pub fn receive(&mut self) -> Result<Receive, PortReceiveError> {
-        match self.receive_signal.borrow_mut().data() {
+        match self.receive_signal.data() {
             Some(data) => Ok(data),
             None => Err(PortReceiveError::NoData),
         }
@@ -69,8 +68,8 @@ impl<Transmit: SignalData, Receive: SignalData> Port<Transmit, Receive> {
 pub struct HalfDuplexInterconnect<PeripheralInput: SignalData, PeripheralOutput: SignalData> {
     state: HalfDuplexState,
     cycle_delay: CycleDelay,
-    input_signal: Rc<RefCell<Signal<PeripheralInput>>>,
-    output_signal: Rc<RefCell<Signal<PeripheralOutput>>>,
+    input_signal: Rc<Signal<PeripheralInput>>,
+    output_signal: Rc<Signal<PeripheralOutput>>,
 }
 
 impl<PeripheralInput: SignalData, PeripheralOutput: SignalData>
@@ -112,15 +111,15 @@ impl<PeripheralInput: SignalData, PeripheralOutput: SignalData> Update
         // always update input signal
         match self.state {
             HalfDuplexState::Write => {
-                if !self.input_signal.borrow().set() {
+                if !self.input_signal.set() {
                     return;
                 }
 
-                self.input_signal.borrow_mut().propagate();
+                self.input_signal.propagate();
                 self.state = HalfDuplexState::Read;
             }
             HalfDuplexState::Read => {
-                if !self.output_signal.borrow().set() {
+                if !self.output_signal.set() {
                     return;
                 }
 
@@ -129,9 +128,9 @@ impl<PeripheralInput: SignalData, PeripheralOutput: SignalData> Update
                     return;
                 }
 
-                self.output_signal.borrow_mut().propagate();
-                self.output_signal.borrow_mut().reset();
-                self.input_signal.borrow_mut().reset();
+                self.output_signal.propagate();
+                self.output_signal.reset();
+                self.input_signal.reset();
                 self.cycle_delay.reset();
                 self.state = HalfDuplexState::Write;
             }
@@ -142,8 +141,8 @@ impl<PeripheralInput: SignalData, PeripheralOutput: SignalData> Update
 #[derive(Debug)]
 pub struct FullDuplexInterconnect<PeripheralInput: SignalData, PeripheralOutput: SignalData> {
     cycle_delay: CycleDelay,
-    input_signal: Rc<RefCell<Signal<PeripheralInput>>>,
-    output_signal: Rc<RefCell<Signal<PeripheralOutput>>>,
+    input_signal: Rc<Signal<PeripheralInput>>,
+    output_signal: Rc<Signal<PeripheralOutput>>,
 }
 
 impl<PeripheralInput: SignalData, PeripheralOutput: SignalData>
@@ -182,12 +181,12 @@ impl<PeripheralInput: SignalData, PeripheralOutput: SignalData> Update
 {
     fn update(&mut self) {
         // always update input signal
-        if self.input_signal.borrow().set() {
-            self.input_signal.borrow_mut().propagate();
-            self.input_signal.borrow_mut().reset();
+        if self.input_signal.set() {
+            self.input_signal.propagate();
+            self.input_signal.reset();
         }
 
-        if !self.output_signal.borrow().set() {
+        if !self.output_signal.set() {
             return;
         }
 
@@ -196,8 +195,8 @@ impl<PeripheralInput: SignalData, PeripheralOutput: SignalData> Update
             return;
         }
 
-        self.output_signal.borrow_mut().propagate();
-        self.output_signal.borrow_mut().reset();
+        self.output_signal.propagate();
+        self.output_signal.reset();
         self.cycle_delay.reset();
     }
 }
@@ -205,14 +204,14 @@ impl<PeripheralInput: SignalData, PeripheralOutput: SignalData> Update
 fn create_signal_pair<PeripheralInput: SignalData, PeripheralOutput: SignalData>(
 ) -> SignalPair<PeripheralInput, PeripheralOutput> {
     (
-        Rc::new(RefCell::new(Signal::new())),
-        Rc::new(RefCell::new(Signal::new())),
+        Rc::new(Signal::new()),
+        Rc::new(Signal::new()),
     )
 }
 
 fn create_ports<PeripheralInput: SignalData, PeripheralOutput: SignalData>(
-    input_signal: &Rc<RefCell<Signal<PeripheralInput>>>,
-    output_signal: &Rc<RefCell<Signal<PeripheralOutput>>>,
+    input_signal: &Rc<Signal<PeripheralInput>>,
+    output_signal: &Rc<Signal<PeripheralOutput>>,
 ) -> (
     PeripheralPort<PeripheralInput, PeripheralOutput>,
     ControllerPort<PeripheralInput, PeripheralOutput>,
